@@ -85,6 +85,52 @@ extension RadixThemeValues {
     }
 }
 
+struct RadixGlassEffectGroup<Content: View>: View {
+    var spacing: CGFloat
+    private let content: Content
+
+    init(spacing: CGFloat, @ViewBuilder content: () -> Content) {
+        self.spacing = spacing
+        self.content = content()
+    }
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            GlassEffectContainer(spacing: resolvedSpacing) {
+                content
+            }
+        } else {
+            content
+        }
+    }
+
+    private var resolvedSpacing: CGFloat {
+        max(spacing + 1, 1)
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func radixInteractiveGlass<S: Shape>(
+        active: Bool = true,
+        enabled: Bool = true,
+        tint: Color? = nil,
+        in shape: S
+    ) -> some View {
+        if active, #available(macOS 26.0, *) {
+            if let tint {
+                glassEffect(.regular.tint(tint).interactive(enabled), in: shape)
+                    .glassEffectTransition(.materialize)
+            } else {
+                glassEffect(.regular.interactive(enabled), in: shape)
+                    .glassEffectTransition(.materialize)
+            }
+        } else {
+            self
+        }
+    }
+}
+
 struct RadixPopupPanel<Content: View>: View {
     var size: RadixSize = .two
     var minWidth: CGFloat?
@@ -106,8 +152,10 @@ struct RadixPopupPanel<Content: View>: View {
     var body: some View {
         let radius = theme.radius(size == .one ? 3 : 4)
 
-        VStack(alignment: .leading, spacing: 0) {
-            content
+        RadixGlassEffectGroup(spacing: size == .one ? theme.space(1) : theme.space(2)) {
+            VStack(alignment: .leading, spacing: 0) {
+                content
+            }
         }
         .padding(size == .one ? theme.space(1) : theme.space(2))
         .frame(minWidth: minWidth, alignment: .leading)
@@ -413,6 +461,7 @@ public struct RadixButtonStyle: ButtonStyle {
         let palette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: color)
         let metrics = RadixControlMetrics(size: size, theme: theme)
         let pressed = configuration.isPressed
+        let shape = RoundedRectangle(cornerRadius: metrics.radius, style: .continuous)
 
         configuration.label
             .font(theme.font(size, weight: variant == .ghost ? .regular : .medium))
@@ -421,9 +470,15 @@ public struct RadixButtonStyle: ButtonStyle {
             .padding(.horizontal, horizontalPadding(metrics: metrics))
             .frame(height: variant == .ghost ? nil : metrics.height)
             .background(backgroundLayer(palette: palette, metrics: metrics, pressed: pressed))
+            .radixInteractiveGlass(
+                active: usesButtonGlass(pressed: pressed),
+                enabled: isEnabled,
+                tint: buttonGlassTint(palette: palette),
+                in: shape
+            )
             .overlay(border(palette: palette, metrics: metrics))
-            .clipShape(RoundedRectangle(cornerRadius: metrics.radius, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: metrics.radius, style: .continuous))
+            .clipShape(shape)
+            .contentShape(shape)
             .shadow(color: classicShadow(palette: palette), radius: variant == .classic ? 1 : 0, x: 0, y: 1)
             .opacity(isEnabled ? 1 : 0.58)
             .scaleEffect(pressed && isEnabled ? 0.985 : 1)
@@ -486,6 +541,21 @@ public struct RadixButtonStyle: ButtonStyle {
                         .blendMode(.overlay)
                 }
             }
+    }
+
+    private func usesButtonGlass(pressed: Bool) -> Bool {
+        isEnabled && (variant != .ghost || pressed)
+    }
+
+    private func buttonGlassTint(palette: RadixComponentPalette) -> Color? {
+        switch variant {
+        case .classic, .solid:
+            highContrast ? palette.accent(12) : palette.accent(9)
+        case .soft:
+            palette.accent(9).opacity(0.2)
+        case .surface, .outline, .ghost:
+            nil
+        }
     }
 
     @ViewBuilder
