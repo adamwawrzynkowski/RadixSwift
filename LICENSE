@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Adam Wawrzynkowski
+Copyright (c) 2026 RadixSwift contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Project notice:
+
+RadixSwift is an independent native Swift and SwiftUI port of Radix UI concepts
+for macOS applications. It ports Radix-inspired Themes, Primitives, Icons, and
+Colors into one Swift Package so other native macOS projects can use it as a UI
+layer dependency.
+
+This package includes generated data and bundled resources derived from
+MIT-licensed Radix UI repositories. Radix UI is maintained by WorkOS and the
+Radix UI contributors. RadixSwift is not an official WorkOS or Radix UI
+distribution unless separately stated. See NOTICE.md for upstream attribution.
