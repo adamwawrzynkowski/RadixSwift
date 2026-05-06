@@ -471,7 +471,7 @@ public struct RadixButtonStyle: ButtonStyle {
             .frame(height: variant == .ghost ? nil : metrics.height)
             .background(backgroundLayer(palette: palette, metrics: metrics, pressed: pressed))
             .radixInteractiveGlass(
-                active: usesButtonGlass(pressed: pressed),
+                active: usesButtonGlass,
                 enabled: isEnabled,
                 tint: buttonGlassTint(palette: palette),
                 in: shape
@@ -543,8 +543,8 @@ public struct RadixButtonStyle: ButtonStyle {
             }
     }
 
-    private func usesButtonGlass(pressed: Bool) -> Bool {
-        isEnabled && (variant != .ghost || pressed)
+    private var usesButtonGlass: Bool {
+        isEnabled && variant != .ghost
     }
 
     private func buttonGlassTint(palette: RadixComponentPalette) -> Color? {
