@@ -95,62 +95,103 @@ public struct RadixThemeValues: Equatable, Sendable {
     }
 
     public func space(_ step: Int) -> CGFloat {
-        let values: [Int: CGFloat] = [
-            1: 4,
-            2: 8,
-            3: 12,
-            4: 16,
-            5: 24,
-            6: 32,
-            7: 40,
-            8: 48,
-            9: 64
-        ]
-        return (values[step] ?? CGFloat(step * 4)) * scaling.factor
+        let base: CGFloat
+        switch step {
+        case 1:
+            base = 4
+        case 2:
+            base = 8
+        case 3:
+            base = 12
+        case 4:
+            base = 16
+        case 5:
+            base = 24
+        case 6:
+            base = 32
+        case 7:
+            base = 40
+        case 8:
+            base = 48
+        case 9:
+            base = 64
+        default:
+            base = CGFloat(step * 4)
+        }
+        return base * scaling.factor
     }
 
     public func fontSize(_ size: RadixSize) -> CGFloat {
-        let values: [RadixSize: CGFloat] = [
-            .one: 12,
-            .two: 14,
-            .three: 16,
-            .four: 18,
-            .five: 20,
-            .six: 24,
-            .seven: 28,
-            .eight: 35,
-            .nine: 60
-        ]
-        return (values[size] ?? 16) * scaling.factor
+        let base: CGFloat
+        switch size {
+        case .one:
+            base = 12
+        case .two:
+            base = 14
+        case .three:
+            base = 16
+        case .four:
+            base = 18
+        case .five:
+            base = 20
+        case .six:
+            base = 24
+        case .seven:
+            base = 28
+        case .eight:
+            base = 35
+        case .nine:
+            base = 60
+        }
+        return base * scaling.factor
     }
 
     public func lineHeight(_ size: RadixSize) -> CGFloat {
-        let values: [RadixSize: CGFloat] = [
-            .one: 16,
-            .two: 20,
-            .three: 24,
-            .four: 26,
-            .five: 28,
-            .six: 30,
-            .seven: 36,
-            .eight: 40,
-            .nine: 60
-        ]
-        return (values[size] ?? 24) * scaling.factor
+        let base: CGFloat
+        switch size {
+        case .one:
+            base = 16
+        case .two:
+            base = 20
+        case .three:
+            base = 24
+        case .four:
+            base = 26
+        case .five:
+            base = 28
+        case .six:
+            base = 30
+        case .seven:
+            base = 36
+        case .eight:
+            base = 40
+        case .nine:
+            base = 60
+        }
+        return base * scaling.factor
     }
 
     public func radius(_ step: Int) -> CGFloat {
         guard !radius.usesFullCapsule else { return 9999 }
 
-        let values: [Int: CGFloat] = [
-            1: 3,
-            2: 4,
-            3: 6,
-            4: 8,
-            5: 12,
-            6: 16
-        ]
-        return (values[step] ?? 6) * scaling.factor * radius.factor
+        let base: CGFloat
+        switch step {
+        case 1:
+            base = 3
+        case 2:
+            base = 4
+        case 3:
+            base = 6
+        case 4:
+            base = 8
+        case 5:
+            base = 12
+        case 6:
+            base = 16
+        default:
+            base = 6
+        }
+        return base * scaling.factor * radius.factor
     }
 
     public func font(_ size: RadixSize, weight: RadixTextWeight = .regular) -> Font {
