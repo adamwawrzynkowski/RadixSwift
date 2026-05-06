@@ -144,6 +144,9 @@ private enum RadixIconSVGParser {
     private static let attributeExpression = try! NSRegularExpression(
         pattern: #"([A-Za-z:-]+)\s*=\s*"([^"]*)"#
     )
+    private static let numberExpression = try! NSRegularExpression(
+        pattern: #"[-+]?(?:(?:\d+\.?\d*)|(?:\.\d+))(?:[eE][-+]?\d+)?"#
+    )
 
     /// <summary>
     /// Parses the small SVG subset used by Radix Icons into SwiftUI paths.
@@ -324,10 +327,8 @@ private enum RadixIconSVGParser {
     }
 
     private static func parseNumbers(_ source: String) -> [CGFloat] {
-        let pattern = #"[-+]?(?:(?:\d+\.?\d*)|(?:\.\d+))(?:[eE][-+]?\d+)?"#
-        let expression = try! NSRegularExpression(pattern: pattern)
         let nsRange = NSRange(source.startIndex..<source.endIndex, in: source)
-        return expression.matches(in: source, range: nsRange).compactMap { match in
+        return numberExpression.matches(in: source, range: nsRange).compactMap { match in
             guard let range = Range(match.range, in: source),
                   let value = Double(source[range])
             else {
@@ -352,6 +353,10 @@ private struct SVGPathParser {
         case command(Character)
         case number(CGFloat)
     }
+
+    private static let tokenExpression = try! NSRegularExpression(
+        pattern: #"[MmLlHhVvCcZz]|[-+]?(?:(?:\d+\.?\d*)|(?:\.\d+))(?:[eE][-+]?\d+)?"#
+    )
 
     private var tokens: [Token]
     private var index = 0
@@ -565,11 +570,9 @@ private struct SVGPathParser {
     }
 
     private static func tokenize(_ data: String) -> [Token] {
-        let pattern = #"[MmLlHhVvCcZz]|[-+]?(?:(?:\d+\.?\d*)|(?:\.\d+))(?:[eE][-+]?\d+)?"#
-        let expression = try! NSRegularExpression(pattern: pattern)
         let nsRange = NSRange(data.startIndex..<data.endIndex, in: data)
 
-        return expression.matches(in: data, range: nsRange).compactMap { match in
+        return tokenExpression.matches(in: data, range: nsRange).compactMap { match in
             guard let range = Range(match.range, in: data) else {
                 return nil
             }

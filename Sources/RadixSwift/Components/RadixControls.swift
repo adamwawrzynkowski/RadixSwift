@@ -670,7 +670,10 @@ public struct RadixSwitch<Label: View>: View {
             .onEnded { gesture in
                 guard isEnabled, didDragKnob || abs(gesture.translation.width) > 2 else { return }
 
-                isOn = switchProgress(from: gesture.location.x) >= 0.5
+                let nextValue = switchProgress(from: gesture.location.x) >= 0.5
+                if isOn != nextValue {
+                    isOn = nextValue
+                }
                 DispatchQueue.main.async {
                     didDragKnob = false
                 }
@@ -819,11 +822,16 @@ public struct RadixSlider: View {
 
         let progress = min(max(Double(x / width), 0), 1)
         let rawValue = bounds.lowerBound + progress * (bounds.upperBound - bounds.lowerBound)
+        let nextValue: Double
         if step > 0 {
             let steps = ((rawValue - bounds.lowerBound) / step).rounded()
-            value = min(max(bounds.lowerBound + steps * step, bounds.lowerBound), bounds.upperBound)
+            nextValue = min(max(bounds.lowerBound + steps * step, bounds.lowerBound), bounds.upperBound)
         } else {
-            value = min(max(rawValue, bounds.lowerBound), bounds.upperBound)
+            nextValue = min(max(rawValue, bounds.lowerBound), bounds.upperBound)
+        }
+
+        if value != nextValue {
+            value = nextValue
         }
     }
 }
@@ -1053,7 +1061,9 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
                     let isSelected = selection == option.id
 
                     Button {
-                        selection = option.id
+                        if selection != option.id {
+                            selection = option.id
+                        }
                     } label: {
                         Text(option.label)
                             .font(theme.font(size, weight: isSelected ? .medium : .regular))
@@ -1295,7 +1305,9 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
         let active = selected || highlighted
 
         return Button {
-            selection = option.id
+            if selection != option.id {
+                selection = option.id
+            }
             highlightedOption = nil
             isOpen = false
         } label: {
@@ -1330,7 +1342,7 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            if hovering {
+            if hovering, highlightedOption != option.id {
                 highlightedOption = option.id
             } else if highlightedOption == option.id {
                 highlightedOption = nil
@@ -1360,7 +1372,9 @@ public struct RadixRadioGroup<Value: Hashable & Sendable>: View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(options) { option in
                 RadixRadio(option.labelLocalizedKey, isSelected: selection == option.id) {
-                    selection = option.id
+                    if selection != option.id {
+                        selection = option.id
+                    }
                 }
             }
         }
@@ -1423,7 +1437,9 @@ public struct RadixRadioCards<Value: Hashable & Sendable>: View {
                     variant: selection == option.id ? .solid : .surface,
                     size: .two
                 ) {
-                    selection = option.id
+                    if selection != option.id {
+                        selection = option.id
+                    }
                 } label: {
                     Text(option.label)
                 }
@@ -1455,7 +1471,9 @@ public struct RadixDataList: View {
 
     public var body: some View {
         Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: theme.space(4), verticalSpacing: theme.space(2)) {
-            ForEach(items) { item in
+            ForEach(items.indices, id: \.self) { index in
+                let item = items[index]
+
                 GridRow {
                     Text(item.label)
                         .foregroundStyle(theme.gray(11, colorScheme: colorScheme))

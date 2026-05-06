@@ -30,6 +30,8 @@ public final class RadixColorCatalog: @unchecked Sendable {
 
     private let exports: [String: [String: String]]
     private let themeColors: [String: RadixThemeColorPayload]
+    private let colorCacheLock = NSLock()
+    private var colorCache: [String: Color] = [:]
 
     private init(bundle: Bundle = .module) {
         guard let url = bundle.url(forResource: "RadixColors", withExtension: "json") else {
@@ -116,7 +118,7 @@ public final class RadixColorCatalog: @unchecked Sendable {
             return .clear
         }
 
-        return Color(radixCSSValue: value)
+        return cachedColor(radixCSSValue: value)
     }
 
     public func blackAlpha(_ step: Int) -> Color {
@@ -129,7 +131,7 @@ public final class RadixColorCatalog: @unchecked Sendable {
 
     public func themeContrast(for color: RadixAccentColor) -> Color {
         let value = themeColors[color.rawValue]?.contrast ?? "white"
-        return Color(radixCSSValue: value)
+        return cachedColor(radixCSSValue: value)
     }
 
     public func themeSurface(
@@ -138,7 +140,7 @@ public final class RadixColorCatalog: @unchecked Sendable {
     ) -> Color {
         let payload = themeColors[color.rawValue]
         let value = appearance == .dark ? payload?.darkSurface : payload?.lightSurface
-        return Color(radixCSSValue: value ?? "#ffffffcc")
+        return cachedColor(radixCSSValue: value ?? "#ffffffcc")
     }
 
     public func matchingGrayColor(for accent: RadixAccentColor) -> RadixGrayColor {
@@ -160,7 +162,27 @@ public final class RadixColorCatalog: @unchecked Sendable {
 
     private func colorFromExport(_ exportName: String, token: String) -> Color {
         guard let value = exports[exportName]?[token] else { return .clear }
-        return Color(radixCSSValue: value)
+        return cachedColor(radixCSSValue: value)
+    }
+
+    /// <summary>
+    /// Reuses parsed SwiftUI colors for Radix tokens that are requested during view rendering.
+    /// </summary>
+    private func cachedColor(radixCSSValue value: String) -> Color {
+        colorCacheLock.lock()
+        if let cached = colorCache[value] {
+            colorCacheLock.unlock()
+            return cached
+        }
+        colorCacheLock.unlock()
+
+        let color = Color(radixCSSValue: value)
+
+        colorCacheLock.lock()
+        colorCache[value] = color
+        colorCacheLock.unlock()
+
+        return color
     }
 
     private func resolvedExportName(
