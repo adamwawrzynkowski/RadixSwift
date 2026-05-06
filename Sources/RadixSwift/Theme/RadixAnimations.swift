@@ -5,17 +5,25 @@ public enum RadixAnimationCurve: String, CaseIterable, Sendable {
     case easeIn
     case easeOut
     case easeInOut
+    case spring
+    case interactiveSpring
 
     func animation(duration: Double) -> Animation {
+        let duration = max(duration, 0)
+
         switch self {
         case .linear:
-            .linear(duration: duration)
+            return .linear(duration: duration)
         case .easeIn:
-            .easeIn(duration: duration)
+            return .easeIn(duration: duration)
         case .easeOut:
-            .easeOut(duration: duration)
+            return .easeOut(duration: duration)
         case .easeInOut:
-            .easeInOut(duration: duration)
+            return .easeInOut(duration: duration)
+        case .spring:
+            return .spring(response: duration, dampingFraction: 0.88, blendDuration: min(duration * 0.25, 0.08))
+        case .interactiveSpring:
+            return .interactiveSpring(response: duration, dampingFraction: 0.9, blendDuration: min(duration * 0.25, 0.08))
         }
     }
 }
@@ -71,14 +79,14 @@ public struct RadixAnimationSettings: Equatable, Sendable {
     public init(
         isEnabled: Bool = true,
         durationScale: Double = 1,
-        hover: RadixAnimationSpec = RadixAnimationSpec(duration: 0.12),
-        press: RadixAnimationSpec = RadixAnimationSpec(duration: 0.08),
-        toggle: RadixAnimationSpec = RadixAnimationSpec(duration: 0.14),
-        popup: RadixAnimationSpec = RadixAnimationSpec(duration: 0.16),
-        dialog: RadixAnimationSpec = RadixAnimationSpec(duration: 0.16),
-        tooltip: RadixAnimationSpec = RadixAnimationSpec(duration: 0.12),
-        disclosure: RadixAnimationSpec = RadixAnimationSpec(duration: 0.14),
-        presence: RadixAnimationSpec = RadixAnimationSpec(duration: 0.16),
+        hover: RadixAnimationSpec = RadixAnimationSpec(duration: 0.16, curve: .interactiveSpring),
+        press: RadixAnimationSpec = RadixAnimationSpec(duration: 0.1, curve: .interactiveSpring),
+        toggle: RadixAnimationSpec = RadixAnimationSpec(duration: 0.22, curve: .spring),
+        popup: RadixAnimationSpec = RadixAnimationSpec(duration: 0.22, curve: .spring),
+        dialog: RadixAnimationSpec = RadixAnimationSpec(duration: 0.26, curve: .spring),
+        tooltip: RadixAnimationSpec = RadixAnimationSpec(duration: 0.16, curve: .interactiveSpring),
+        disclosure: RadixAnimationSpec = RadixAnimationSpec(duration: 0.22, curve: .spring),
+        presence: RadixAnimationSpec = RadixAnimationSpec(duration: 0.2, curve: .spring),
         spinner: RadixAnimationSpec = RadixAnimationSpec(duration: 0.8, curve: .linear)
     ) {
         self.isEnabled = isEnabled
@@ -133,14 +141,27 @@ public struct RadixAnimationSettings: Equatable, Sendable {
             .repeatForever(autoreverses: autoreverses)
     }
 
+    public func perform(_ role: RadixAnimationRole, updates: () -> Void) {
+        guard let animation = animation(for: role) else {
+            updates()
+            return
+        }
+
+        withAnimation(animation) {
+            updates()
+        }
+    }
+
     public func transition(for role: RadixAnimationRole) -> AnyTransition {
         guard isEnabled else { return .identity }
 
         switch role {
-        case .dialog, .popup:
-            return .scale(scale: 0.97).combined(with: .opacity)
+        case .dialog:
+            return .scale(scale: 0.96, anchor: .center).combined(with: .opacity)
+        case .popup:
+            return .scale(scale: 0.96, anchor: .top).combined(with: .opacity)
         case .tooltip:
-            return .scale(scale: 0.98).combined(with: .opacity)
+            return .scale(scale: 0.96, anchor: .bottom).combined(with: .opacity)
         case .disclosure:
             return .opacity.combined(with: .move(edge: .top))
         case .presence:

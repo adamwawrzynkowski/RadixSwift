@@ -15,6 +15,7 @@ public struct RadixRadio<Label: View>: View {
     private let label: Label
 
     @Environment(\.radixTheme) private var theme
+    @Environment(\.radixAnimations) private var animations
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
 
@@ -47,7 +48,11 @@ public struct RadixRadio<Label: View>: View {
     public var body: some View {
         let palette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: color)
 
-        Button(action: action) {
+        Button {
+            animations.perform(.toggle) {
+                action()
+            }
+        } label: {
             HStack(spacing: 8) {
                 radioControl(palette: palette)
 
@@ -59,6 +64,8 @@ public struct RadixRadio<Label: View>: View {
         }
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.58)
+        .radixResponsiveHover(active: isEnabled, scale: 1.006)
+        .animation(animations.animation(for: .toggle), value: isSelected)
     }
 
     private var controlSize: CGFloat {

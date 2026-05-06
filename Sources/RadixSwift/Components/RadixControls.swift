@@ -397,7 +397,9 @@ public struct RadixCheckbox<Label: View>: View {
         let palette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: color)
 
         Button {
-            isOn.toggle()
+            animations.perform(.toggle) {
+                isOn.toggle()
+            }
         } label: {
             HStack(spacing: theme.space(2)) {
                 checkboxBox(palette: palette)
@@ -409,6 +411,7 @@ public struct RadixCheckbox<Label: View>: View {
         }
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.58)
+        .radixResponsiveHover(active: isEnabled, scale: 1.006)
         .accessibilityValue(isOn ? Text("Checked") : Text("Unchecked"))
         .animation(animations.animation(for: .toggle), value: isOn)
     }
@@ -536,7 +539,9 @@ public struct RadixSwitch<Label: View>: View {
                 return
             }
 
-            isOn.toggle()
+            animations.perform(.toggle) {
+                isOn.toggle()
+            }
         } label: {
             HStack(spacing: theme.space(2)) {
                 switchTrack(palette: palette)
@@ -548,6 +553,7 @@ public struct RadixSwitch<Label: View>: View {
         }
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.58)
+        .radixResponsiveHover(active: isEnabled, scale: 1.006)
         .animation(animations.animation(for: .toggle), value: isOn)
         .accessibilityValue(isOn ? Text("On") : Text("Off"))
     }
@@ -672,7 +678,9 @@ public struct RadixSwitch<Label: View>: View {
 
                 let nextValue = switchProgress(from: gesture.location.x) >= 0.5
                 if isOn != nextValue {
-                    isOn = nextValue
+                    animations.perform(.toggle) {
+                        isOn = nextValue
+                    }
                 }
                 DispatchQueue.main.async {
                     didDragKnob = false
@@ -845,6 +853,7 @@ public struct RadixTextField: View {
     @FocusState private var isFocused: Bool
 
     @Environment(\.radixTheme) private var theme
+    @Environment(\.radixAnimations) private var animations
     @Environment(\.colorScheme) private var colorScheme
 
     public init(
@@ -879,6 +888,7 @@ public struct RadixTextField: View {
             )
             .overlay(focusRing(radius: metrics.radius, palette: palette))
             .clipShape(RoundedRectangle(cornerRadius: metrics.radius, style: .continuous))
+            .animation(animations.animation(for: .hover), value: isFocused)
     }
 
     private var fieldBorderWidth: CGFloat {
@@ -931,6 +941,7 @@ public struct RadixTextArea: View {
     @FocusState private var isFocused: Bool
 
     @Environment(\.radixTheme) private var theme
+    @Environment(\.radixAnimations) private var animations
     @Environment(\.colorScheme) private var colorScheme
 
     public init(
@@ -966,6 +977,7 @@ public struct RadixTextArea: View {
             )
             .overlay(focusRing(radius: radius, palette: palette))
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .animation(animations.animation(for: .hover), value: isFocused)
     }
 
     private var fieldBorderWidth: CGFloat {
@@ -1037,6 +1049,7 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
     @Environment(\.radixAnimations) private var animations
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
+    @Namespace private var selectionNamespace
 
     public init(
         selection: Binding<Value>,
@@ -1053,6 +1066,8 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
     public var body: some View {
         let metrics = RadixControlMetrics(size: size, theme: theme)
         let radius = metrics.radius
+        let indicatorInset = segmentedIndicatorInset
+        let indicatorRadius = max(radius - 1, 0.5)
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
         RadixGlassEffectGroup(spacing: 0) {
@@ -1062,7 +1077,9 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
 
                     Button {
                         if selection != option.id {
-                            selection = option.id
+                            animations.perform(.toggle) {
+                                selection = option.id
+                            }
                         }
                     } label: {
                         Text(option.label)
@@ -1071,11 +1088,17 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
                             .padding(.horizontal, segmentedHorizontalPadding)
                             .frame(height: metrics.height)
                             .frame(maxWidth: .infinity)
-                            .background(selectedIndicator(isSelected: isSelected, radius: radius))
+                            .background(selectedIndicator(isSelected: isSelected, radius: indicatorRadius, inset: indicatorInset))
                             .radixInteractiveGlass(
                                 active: isSelected,
                                 enabled: isEnabled,
-                                in: RoundedRectangle(cornerRadius: max(radius - 1, 0.5), style: .continuous)
+                                in: RadixInsetRoundedRectangle(
+                                    cornerRadius: indicatorRadius,
+                                    horizontalInset: indicatorInset,
+                                    verticalInset: indicatorInset
+                                ),
+                                effectID: "selection",
+                                namespace: selectionNamespace
                             )
                             .contentShape(Rectangle())
                     }
@@ -1101,6 +1124,13 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
         .animation(animations.animation(for: .toggle), value: selection)
     }
 
+    private var segmentedIndicatorInset: CGFloat {
+        switch size {
+        case .one: 1
+        default: 2
+        }
+    }
+
     private var segmentedHorizontalPadding: CGFloat {
         switch size {
         case .one: theme.space(3)
@@ -1122,20 +1152,20 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
     }
 
     @ViewBuilder
-    private func selectedIndicator(isSelected: Bool, radius: CGFloat) -> some View {
+    private func selectedIndicator(isSelected: Bool, radius: CGFloat, inset: CGFloat) -> some View {
         if isSelected {
             let fill = colorScheme == .dark
                 ? theme.gray(3, alpha: true, colorScheme: colorScheme)
                 : theme.background(colorScheme: colorScheme)
-            let shape = RoundedRectangle(cornerRadius: max(radius - 1, 0.5), style: .continuous)
+            let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
             shape
                 .fill(fill)
-                .padding(1)
+                .padding(inset)
                 .overlay(
-                    RoundedRectangle(cornerRadius: max(radius - 1, 0.5), style: .continuous)
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .stroke(theme.gray(4, alpha: true, colorScheme: colorScheme), lineWidth: variant == .surface ? 1 : 0)
-                        .padding(1)
+                        .padding(inset)
                 )
         }
     }
@@ -1178,7 +1208,9 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
         let shape = RoundedRectangle(cornerRadius: metrics.radius, style: .continuous)
 
         Button {
-            isOpen.toggle()
+            animations.perform(.popup) {
+                isOpen.toggle()
+            }
         } label: {
             HStack(spacing: theme.space(2)) {
                 if let selectedLabel {
@@ -1211,6 +1243,7 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
         }
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.58)
+        .radixResponsiveHover(active: isEnabled, scale: 1.006)
         .background(
             RadixFloatingPanel(isPresented: $isOpen, placement: .belowAnchor(offset: 4)) {
                 RadixTheme(
@@ -1303,13 +1336,17 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
         let selected = selection == option.id
         let highlighted = highlightedOption == option.id
         let active = selected || highlighted
+        let radius = theme.radius(2)
+        let highlightInset: CGFloat = 2
 
         return Button {
-            if selection != option.id {
-                selection = option.id
+            animations.perform(.toggle) {
+                if selection != option.id {
+                    selection = option.id
+                }
+                highlightedOption = nil
+                isOpen = false
             }
-            highlightedOption = nil
-            isOpen = false
         } label: {
             HStack(spacing: theme.space(2)) {
                 Group {
@@ -1330,15 +1367,15 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
             .foregroundStyle(active ? palette.contrast() : theme.gray(12, colorScheme: colorScheme))
             .frame(height: size == .one ? theme.space(5) : theme.space(6))
             .padding(.horizontal, theme.space(2))
-            .background(selectItemBackground(active: active, palette: palette))
+            .background(selectItemBackground(active: active, inset: highlightInset, radius: radius, palette: palette))
             .radixInteractiveGlass(
                 active: active,
                 enabled: isEnabled,
                 tint: palette.accent(9).opacity(0.22),
-                in: RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+                in: RadixInsetRoundedRectangle(cornerRadius: radius, verticalInset: highlightInset)
             )
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -1348,14 +1385,16 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
                 highlightedOption = nil
             }
         }
-        .animation(animations.animation(for: .hover), value: highlightedOption)
     }
 
     @ViewBuilder
-    private func selectItemBackground(active: Bool, palette: RadixComponentPalette) -> some View {
-        let shape = RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+    private func selectItemBackground(active: Bool, inset: CGFloat, radius: CGFloat, palette: RadixComponentPalette) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
-        shape.fill(active ? palette.accent(9) : .clear)
+        shape
+            .fill(active ? palette.accent(9) : .clear)
+            .padding(.vertical, inset)
+            .animation(animations.animation(for: .hover), value: active)
     }
 }
 

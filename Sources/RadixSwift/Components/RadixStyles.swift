@@ -109,6 +109,17 @@ struct RadixGlassEffectGroup<Content: View>: View {
     }
 }
 
+struct RadixInsetRoundedRectangle: Shape {
+    var cornerRadius: CGFloat
+    var horizontalInset: CGFloat = 0
+    var verticalInset: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .path(in: rect.insetBy(dx: horizontalInset, dy: verticalInset))
+    }
+}
+
 extension View {
     @ViewBuilder
     func radixInteractiveGlass<S: Shape>(
@@ -128,6 +139,53 @@ extension View {
         } else {
             self
         }
+    }
+
+    @ViewBuilder
+    func radixInteractiveGlass<S: Shape, ID: Hashable & Sendable>(
+        active: Bool = true,
+        enabled: Bool = true,
+        tint: Color? = nil,
+        in shape: S,
+        effectID: ID,
+        namespace: Namespace.ID
+    ) -> some View {
+        if active, #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
+            if let tint {
+                glassEffect(.regular.tint(tint).interactive(enabled), in: shape)
+                    .glassEffectTransition(.materialize)
+                    .glassEffectID(effectID, in: namespace)
+            } else {
+                glassEffect(.regular.interactive(enabled), in: shape)
+                    .glassEffectTransition(.materialize)
+                    .glassEffectID(effectID, in: namespace)
+            }
+        } else {
+            self
+        }
+    }
+
+    func radixResponsiveHover(active: Bool = true, scale: CGFloat = 1.012) -> some View {
+        modifier(RadixResponsiveHoverModifier(active: active, scale: scale))
+    }
+}
+
+private struct RadixResponsiveHoverModifier: ViewModifier {
+    var active: Bool
+    var scale: CGFloat
+
+    @State private var isHovered = false
+    @Environment(\.radixAnimations) private var animations
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(active && isHovered ? scale : 1)
+            .animation(animations.animation(for: .hover), value: isHovered)
+            .onHover { hovering in
+                animations.perform(.hover) {
+                    isHovered = hovering
+                }
+            }
     }
 }
 
@@ -235,7 +293,7 @@ struct RadixFloatingPanel<PanelContent: View>: NSViewRepresentable {
             self.anchor = anchor
 
             guard isPresented, anchor.window != nil else {
-                close()
+                close(animations: animations)
                 return
             }
 
@@ -380,15 +438,37 @@ struct RadixFloatingPanel<PanelContent: View>: NSViewRepresentable {
             )
         }
 
-        func close() {
+        /// <summary>
+        /// Tears down the panel immediately for cleanup, or fades it out for normal UI dismissals.
+        /// </summary>
+        func close(animations: RadixAnimationSettings? = nil) {
             if let monitor {
                 NSEvent.removeMonitor(monitor)
                 self.monitor = nil
             }
 
-            panel?.close()
+            guard let popup = panel else {
+                hostingView = nil
+                return
+            }
+
             panel = nil
             hostingView = nil
+
+            guard let animations, animations.isEnabled, popup.isVisible else {
+                popup.close()
+                return
+            }
+
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = animations.spec(for: .popup).duration * max(animations.durationScale, 0)
+                context.allowsImplicitAnimation = true
+                popup.animator().alphaValue = 0
+            } completionHandler: {
+                Task { @MainActor in
+                    popup.close()
+                }
+            }
         }
     }
 }
@@ -482,6 +562,7 @@ public struct RadixButtonStyle: ButtonStyle {
             .shadow(color: classicShadow(palette: palette), radius: variant == .classic ? 1 : 0, x: 0, y: 1)
             .opacity(isEnabled ? 1 : 0.58)
             .scaleEffect(pressed && isEnabled ? 0.985 : 1)
+            .radixResponsiveHover(active: isEnabled && !pressed, scale: variant == .ghost ? 1.008 : 1.012)
             .animation(animations.animation(for: .press), value: pressed)
     }
 
