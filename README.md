@@ -4,6 +4,8 @@ RadixSwift is a single Swift package that ports Radix UI concepts to native macO
 
 The package is a native SwiftUI implementation. It uses Radix naming, visual tokens, source inventories, and bundled resources as the reference point, while exposing Swift-friendly APIs prefixed with `Radix` to avoid collisions with SwiftUI types.
 
+<img width="1122" height="858" alt="SCR-20260506-jdpd" src="https://github.com/user-attachments/assets/c900abc3-fb4e-41e9-88ec-a717545aab9d" />
+
 ## What Is Included
 
 - `RadixTheme` and `RadixThemeValues` for appearance, accent color, gray color, panel background, radius, scaling, and motion.
