@@ -4,3 +4,5 @@ dist/
 DerivedData/
 *.xcuserstate
 .DS_Store
+.codex
+.claude
