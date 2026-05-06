@@ -49,21 +49,7 @@ public struct RadixRadio<Label: View>: View {
 
         Button(action: action) {
             HStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? palette.accent(9) : theme.surface(colorScheme: colorScheme, color: color))
-                        .overlay(
-                            Circle()
-                                .stroke(isSelected ? .clear : theme.gray(7, alpha: true, colorScheme: colorScheme), lineWidth: 1)
-                        )
-
-                    if isSelected {
-                        Circle()
-                            .fill(palette.contrast())
-                            .frame(width: dotSize, height: dotSize)
-                    }
-                }
-                .frame(width: controlSize, height: controlSize)
+                radioControl(palette: palette)
 
                 label
                     .font(theme.font(.two))
@@ -86,6 +72,29 @@ public struct RadixRadio<Label: View>: View {
 
     private var dotSize: CGFloat {
         max(controlSize * 0.42, 5)
+    }
+
+    private func radioControl(palette: RadixComponentPalette) -> some View {
+        ZStack {
+            Circle()
+                .fill(isSelected ? palette.accent(9) : theme.surface(colorScheme: colorScheme, color: color))
+                .radixInteractiveGlass(
+                    enabled: isEnabled,
+                    tint: isSelected ? palette.accent(9).opacity(0.22) : nil,
+                    in: Circle()
+                )
+                .overlay(
+                    Circle()
+                        .stroke(isSelected ? .clear : theme.gray(7, alpha: true, colorScheme: colorScheme), lineWidth: 1)
+                )
+
+            if isSelected {
+                Circle()
+                    .fill(palette.contrast())
+                    .frame(width: dotSize, height: dotSize)
+            }
+        }
+        .frame(width: controlSize, height: controlSize)
     }
 }
 

@@ -437,6 +437,11 @@ public struct RadixCheckbox<Label: View>: View {
         return ZStack {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .fill(checkboxBackground(palette: palette))
+                .radixInteractiveGlass(
+                    enabled: isEnabled,
+                    tint: isOn ? palette.accent(9).opacity(0.22) : nil,
+                    in: RoundedRectangle(cornerRadius: radius, style: .continuous)
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .stroke(checkboxBorder(palette: palette), lineWidth: isOn ? 0 : 1)
@@ -484,6 +489,8 @@ public struct RadixCheckbox<Label: View>: View {
 
 public struct RadixSwitch<Label: View>: View {
     @Binding private var isOn: Bool
+    @GestureState private var dragProgress: CGFloat?
+    @State private var didDragKnob = false
     public var size: RadixSize
     public var variant: RadixThemeVariant
     public var color: RadixAccentColor?
@@ -524,6 +531,11 @@ public struct RadixSwitch<Label: View>: View {
         let palette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: color)
 
         Button {
+            guard !didDragKnob else {
+                didDragKnob = false
+                return
+            }
+
             isOn.toggle()
         } label: {
             HStack(spacing: theme.space(2)) {
@@ -556,23 +568,38 @@ public struct RadixSwitch<Label: View>: View {
     private func switchTrack(palette: RadixComponentPalette) -> some View {
         let inset: CGFloat = 1
         let thumbSize = trackHeight - inset * 2
-        let offset = isOn ? trackWidth - trackHeight : 0
+        let progress = dragProgress ?? (isOn ? 1 : 0)
+        let offset = (trackWidth - trackHeight) * progress
 
-        return ZStack(alignment: .leading) {
-            Capsule()
-                .fill(switchBackground(palette: palette))
-                .overlay(
+        return Group {
+            if #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
+                GlassEffectContainer(spacing: 3) {
+                    ZStack(alignment: .leading) {
+                        liquidGlassTrack(palette: palette)
+                        liquidGlassKnob(size: thumbSize)
+                            .offset(x: inset + offset)
+                    }
+                }
+            } else {
+                ZStack(alignment: .leading) {
                     Capsule()
-                        .stroke(switchBorder(palette: palette), lineWidth: 1)
-                )
+                        .fill(switchBackground(palette: palette))
+                        .overlay(
+                            Capsule()
+                                .stroke(switchBorder(palette: palette), lineWidth: 1)
+                        )
 
-            Circle()
-                .fill(Color.white)
-                .frame(width: thumbSize, height: thumbSize)
-                .shadow(color: .black.opacity(0.12), radius: 1, x: 0, y: 1)
-                .offset(x: inset + offset)
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: thumbSize, height: thumbSize)
+                        .shadow(color: .black.opacity(0.12), radius: 1, x: 0, y: 1)
+                        .offset(x: inset + offset)
+                }
+            }
         }
         .frame(width: trackWidth, height: trackHeight)
+        .contentShape(Capsule())
+        .highPriorityGesture(switchDragGesture())
     }
 
     private func switchBackground(palette: RadixComponentPalette) -> Color {
@@ -588,6 +615,76 @@ public struct RadixSwitch<Label: View>: View {
     private func switchBorder(palette: RadixComponentPalette) -> Color {
         if isOn && variant != .surface { return .clear }
         return palette.gray(5, alpha: true)
+    }
+
+    @available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *)
+    private func liquidGlassTrack(palette: RadixComponentPalette) -> some View {
+        Capsule()
+            .fill(switchLiquidGlassFill(palette: palette))
+            .glassEffect(switchGlass(palette: palette), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(switchBorder(palette: palette), lineWidth: 1)
+            )
+    }
+
+    @available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *)
+    private func liquidGlassKnob(size: CGFloat) -> some View {
+        Circle()
+            .fill(Color.white.opacity(colorScheme == .dark ? 0.78 : 0.86))
+            .glassEffect(.regular.interactive(isEnabled), in: Circle())
+            .frame(width: size, height: size)
+            .shadow(color: .black.opacity(0.12), radius: 1, x: 0, y: 1)
+    }
+
+    private func switchLiquidGlassFill(palette: RadixComponentPalette) -> Color {
+        guard isEnabled else { return palette.gray(3, alpha: true).opacity(0.3) }
+
+        if isOn {
+            return palette.accent(9).opacity(variant == .soft ? 0.18 : 0.26)
+        }
+
+        return palette.gray(3, alpha: true).opacity(0.24)
+    }
+
+    @available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *)
+    private func switchGlass(palette: RadixComponentPalette) -> Glass {
+        let glass = isOn ? Glass.regular.tint(palette.accent(9)) : Glass.regular
+        return glass.interactive(isEnabled)
+    }
+
+    private func switchDragGesture() -> some Gesture {
+        DragGesture(minimumDistance: 3)
+            .updating($dragProgress) { gesture, state, _ in
+                guard isEnabled else { return }
+
+                state = switchProgress(from: gesture.location.x)
+            }
+            .onChanged { gesture in
+                guard isEnabled else { return }
+
+                if abs(gesture.translation.width) > 2 {
+                    didDragKnob = true
+                }
+            }
+            .onEnded { gesture in
+                guard isEnabled, didDragKnob || abs(gesture.translation.width) > 2 else { return }
+
+                isOn = switchProgress(from: gesture.location.x) >= 0.5
+                DispatchQueue.main.async {
+                    didDragKnob = false
+                }
+            }
+    }
+
+    /// <summary>
+    /// Converts a pointer position inside the track into the knob's 0...1 travel range.
+    /// </summary>
+    private func switchProgress(from locationX: CGFloat) -> CGFloat {
+        let travel = trackWidth - trackHeight
+        guard travel > 0 else { return 0 }
+
+        return min(max((locationX - trackHeight / 2) / travel, 0), 1)
     }
 }
 
@@ -629,28 +726,37 @@ public struct RadixSlider: View {
             let progress = normalizedProgress
             let trackWidth = max(proxy.size.width, 1)
 
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(sliderTrackBackground(palette: palette))
-                    .overlay(
-                        Capsule()
-                            .stroke(sliderTrackBorder(palette: palette), lineWidth: variant == .surface ? 1 : 0)
-                    )
-                    .frame(height: trackHeight)
+            RadixGlassEffectGroup(spacing: 0) {
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(sliderTrackBackground(palette: palette))
+                        .radixInteractiveGlass(enabled: isEnabled, in: Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(sliderTrackBorder(palette: palette), lineWidth: variant == .surface ? 1 : 0)
+                        )
+                        .frame(height: trackHeight)
 
-                Capsule()
-                    .fill(sliderRangeBackground(palette: palette))
-                    .frame(width: trackWidth * progress, height: trackHeight)
+                    Capsule()
+                        .fill(sliderRangeBackground(palette: palette))
+                        .radixInteractiveGlass(
+                            enabled: isEnabled,
+                            tint: palette.accent(9).opacity(0.2),
+                            in: Capsule()
+                        )
+                        .frame(width: trackWidth * progress, height: trackHeight)
 
-                Circle()
-                    .fill(theme.solidPanel(colorScheme: colorScheme))
-                    .frame(width: thumbSize, height: thumbSize)
-                    .overlay(
-                        Circle()
-                            .stroke(theme.gray(7, alpha: true, colorScheme: colorScheme), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.12 : 0.05), radius: 1.5, x: 0, y: 1)
-                    .offset(x: min(max(trackWidth * progress - thumbSize / 2, 0), max(trackWidth - thumbSize, 0)))
+                    Circle()
+                        .fill(sliderThumbBackground)
+                        .radixInteractiveGlass(enabled: isEnabled, in: Circle())
+                        .frame(width: thumbSize, height: thumbSize)
+                        .overlay(
+                            Circle()
+                                .stroke(theme.gray(7, alpha: true, colorScheme: colorScheme), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(colorScheme == .dark ? 0.12 : 0.05), radius: 1.5, x: 0, y: 1)
+                        .offset(x: min(max(trackWidth * progress - thumbSize / 2, 0), max(trackWidth - thumbSize, 0)))
+                }
             }
             .frame(height: controlHeight)
             .contentShape(Rectangle())
@@ -677,6 +783,12 @@ public struct RadixSlider: View {
 
     private var sliderThumbSize: CGFloat {
         sliderTrackHeight + theme.space(1)
+    }
+
+    private var sliderThumbBackground: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.88)
+            : theme.gray(12, colorScheme: colorScheme).opacity(0.92)
     }
 
     private func sliderTrackBackground(palette: RadixComponentPalette) -> Color {
@@ -933,37 +1045,44 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
     public var body: some View {
         let metrics = RadixControlMetrics(size: size, theme: theme)
         let radius = metrics.radius
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
-        HStack(spacing: 0) {
-            ForEach(Array(options.enumerated()), id: \.element.id) { index, option in
-                Button {
-                    selection = option.id
-                } label: {
-                    Text(option.label)
-                        .font(theme.font(size, weight: selection == option.id ? .medium : .regular))
-                        .foregroundStyle(selection == option.id ? theme.gray(12, colorScheme: colorScheme) : theme.gray(11, colorScheme: colorScheme))
-                        .padding(.horizontal, segmentedHorizontalPadding)
-                        .frame(height: metrics.height)
-                        .frame(maxWidth: .infinity)
-                        .background(selectedIndicator(isSelected: selection == option.id, radius: radius))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+        RadixGlassEffectGroup(spacing: 0) {
+            HStack(spacing: 0) {
+                ForEach(Array(options.enumerated()), id: \.element.id) { index, option in
+                    let isSelected = selection == option.id
 
-                if index < options.count - 1 {
-                    Rectangle()
-                        .fill(theme.gray(4, alpha: true, colorScheme: colorScheme))
-                        .frame(width: 1, height: max(metrics.height - 6, 1))
-                        .opacity(separatorOpacity(left: option.id, right: options[index + 1].id))
+                    Button {
+                        selection = option.id
+                    } label: {
+                        Text(option.label)
+                            .font(theme.font(size, weight: isSelected ? .medium : .regular))
+                            .foregroundStyle(isSelected ? theme.gray(12, colorScheme: colorScheme) : theme.gray(11, colorScheme: colorScheme))
+                            .padding(.horizontal, segmentedHorizontalPadding)
+                            .frame(height: metrics.height)
+                            .frame(maxWidth: .infinity)
+                            .background(selectedIndicator(isSelected: isSelected, radius: radius))
+                            .radixInteractiveGlass(
+                                active: isSelected,
+                                enabled: isEnabled,
+                                in: RoundedRectangle(cornerRadius: max(radius - 1, 0.5), style: .continuous)
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if index < options.count - 1 {
+                        Rectangle()
+                            .fill(theme.gray(4, alpha: true, colorScheme: colorScheme))
+                            .frame(width: 1, height: max(metrics.height - 6, 1))
+                            .opacity(separatorOpacity(left: option.id, right: options[index + 1].id))
+                    }
                 }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(theme.surface(colorScheme: colorScheme))
-                .overlay(theme.gray(3, alpha: true, colorScheme: colorScheme))
-        )
-        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .background(segmentedBackground(radius: radius))
+        .radixInteractiveGlass(enabled: isEnabled, in: shape)
+        .clipShape(shape)
         .overlay(
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .stroke(theme.gray(4, alpha: true, colorScheme: colorScheme), lineWidth: 1)
@@ -984,14 +1103,23 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
         selection == left || selection == right ? 0 : 1
     }
 
+    private func segmentedBackground(radius: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+        return shape
+            .fill(theme.surface(colorScheme: colorScheme))
+            .overlay(theme.gray(3, alpha: true, colorScheme: colorScheme))
+    }
+
     @ViewBuilder
     private func selectedIndicator(isSelected: Bool, radius: CGFloat) -> some View {
         if isSelected {
             let fill = colorScheme == .dark
                 ? theme.gray(3, alpha: true, colorScheme: colorScheme)
                 : theme.background(colorScheme: colorScheme)
+            let shape = RoundedRectangle(cornerRadius: max(radius - 1, 0.5), style: .continuous)
 
-            RoundedRectangle(cornerRadius: max(radius - 1, 0.5), style: .continuous)
+            shape
                 .fill(fill)
                 .padding(1)
                 .overlay(
@@ -1037,6 +1165,7 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
     public var body: some View {
         let palette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: color)
         let metrics = RadixControlMetrics(size: size, theme: theme)
+        let shape = RoundedRectangle(cornerRadius: metrics.radius, style: .continuous)
 
         Button {
             isOpen.toggle()
@@ -1059,10 +1188,16 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
             .lineLimit(1)
             .padding(.horizontal, metrics.controlHorizontalPadding)
             .frame(minWidth: 116, minHeight: metrics.height)
-            .background(selectBackground(palette: palette))
+            .background(selectBackgroundLayer(palette: palette, radius: metrics.radius))
+            .radixInteractiveGlass(
+                active: usesSelectGlass,
+                enabled: isEnabled,
+                tint: selectGlassTint(palette: palette),
+                in: shape
+            )
             .overlay(selectBorder(palette: palette, radius: metrics.radius))
-            .clipShape(RoundedRectangle(cornerRadius: metrics.radius, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: metrics.radius, style: .continuous))
+            .clipShape(shape)
+            .contentShape(shape)
         }
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.58)
@@ -1101,6 +1236,10 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
         }
     }
 
+    private var usesSelectGlass: Bool {
+        isEnabled && (variant != .ghost || isOpen)
+    }
+
     private func selectBackground(palette: RadixComponentPalette) -> Color {
         guard isEnabled else { return palette.gray(3, alpha: true) }
 
@@ -1115,6 +1254,24 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
             return palette.accent(9)
         case .surface, .outline:
             return theme.controlSurface(colorScheme: colorScheme)
+        }
+    }
+
+    private func selectBackgroundLayer(palette: RadixComponentPalette, radius: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+        return shape
+            .fill(selectBackground(palette: palette))
+    }
+
+    private func selectGlassTint(palette: RadixComponentPalette) -> Color? {
+        switch variant {
+        case .solid:
+            palette.accent(9)
+        case .soft:
+            palette.accent(9).opacity(0.2)
+        case .classic, .surface, .outline, .ghost:
+            nil
         }
     }
 
@@ -1161,15 +1318,32 @@ public struct RadixSelect<Value: Hashable & Sendable>: View {
             .foregroundStyle(active ? palette.contrast() : theme.gray(12, colorScheme: colorScheme))
             .frame(height: size == .one ? theme.space(5) : theme.space(6))
             .padding(.horizontal, theme.space(2))
-            .background(active ? palette.accent(9) : .clear)
+            .background(selectItemBackground(active: active, palette: palette))
+            .radixInteractiveGlass(
+                active: active,
+                enabled: isEnabled,
+                tint: palette.accent(9).opacity(0.22),
+                in: RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+            )
             .clipShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            highlightedOption = hovering ? option.id : (highlighted ? nil : highlightedOption)
+            if hovering {
+                highlightedOption = option.id
+            } else if highlightedOption == option.id {
+                highlightedOption = nil
+            }
         }
         .animation(animations.animation(for: .hover), value: highlightedOption)
+    }
+
+    @ViewBuilder
+    private func selectItemBackground(active: Bool, palette: RadixComponentPalette) -> some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+
+        shape.fill(active ? palette.accent(9) : .clear)
     }
 }
 

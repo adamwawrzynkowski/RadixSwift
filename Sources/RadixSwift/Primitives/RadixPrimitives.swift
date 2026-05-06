@@ -90,13 +90,20 @@ public struct RadixAccordion<Label: View, Content: View>: View {
                     .transition(animations.transition(for: .disclosure))
             }
         }
-        .background(theme.controlSurface(colorScheme: colorScheme))
+        .background(accordionBackground(radius: radius))
+        .radixInteractiveGlass(in: RoundedRectangle(cornerRadius: radius, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .stroke(theme.gray(6, alpha: true, colorScheme: colorScheme), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
+    }
+
+    private func accordionBackground(radius: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+        return shape.fill(theme.controlSurface(colorScheme: colorScheme))
     }
 }
 
@@ -162,22 +169,31 @@ public struct RadixTabNav<Value: Hashable & Sendable>: View {
     }
 
     public var body: some View {
-        HStack(spacing: theme.space(1)) {
-            ForEach(tabs) { tab in
-                Button {
-                    selection = tab.id
-                } label: {
-                    Text(tab.label)
-                        .font(theme.font(.two, weight: selection == tab.id ? .medium : .regular))
-                        .padding(.horizontal, theme.space(2))
-                        .padding(.vertical, theme.space(1))
-                        .foregroundStyle(selection == tab.id ? theme.accent(11, colorScheme: colorScheme) : theme.gray(11, colorScheme: colorScheme))
-                        .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
+        RadixGlassEffectGroup(spacing: theme.space(1)) {
+            HStack(spacing: theme.space(1)) {
+                ForEach(tabs) { tab in
+                    let isSelected = selection == tab.id
+                    let shape = RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+
+                    Button {
+                        selection = tab.id
+                    } label: {
+                        Text(tab.label)
+                            .font(theme.font(.two, weight: isSelected ? .medium : .regular))
+                            .padding(.horizontal, theme.space(2))
+                            .padding(.vertical, theme.space(1))
+                            .foregroundStyle(isSelected ? theme.accent(11, colorScheme: colorScheme) : theme.gray(11, colorScheme: colorScheme))
+                            .background(shape.fill(isSelected ? theme.accent(3, alpha: true, colorScheme: colorScheme) : .clear))
+                            .radixInteractiveGlass(
+                                active: isSelected,
+                                tint: theme.accent(9, colorScheme: colorScheme).opacity(0.16),
+                                in: shape
+                            )
+                            .clipShape(shape)
+                            .contentShape(shape)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                .background(selection == tab.id ? theme.accent(3, alpha: true, colorScheme: colorScheme) : .clear)
-                .clipShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
-                .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
             }
         }
     }
@@ -211,19 +227,21 @@ public struct RadixToggleGroup<Value: Hashable & Sendable>: View {
     }
 
     public var body: some View {
-        HStack(spacing: 4) {
-            ForEach(items) { item in
-                RadixButton(
-                    variant: selection.contains(item.id) ? .solid : .soft,
-                    size: .one
-                ) {
-                    if selection.contains(item.id) {
-                        selection.remove(item.id)
-                    } else {
-                        selection.insert(item.id)
+        RadixGlassEffectGroup(spacing: 4) {
+            HStack(spacing: 4) {
+                ForEach(items) { item in
+                    RadixButton(
+                        variant: selection.contains(item.id) ? .solid : .soft,
+                        size: .one
+                    ) {
+                        if selection.contains(item.id) {
+                            selection.remove(item.id)
+                        } else {
+                            selection.insert(item.id)
+                        }
+                    } label: {
+                        Text(item.label)
                     }
-                } label: {
-                    Text(item.label)
                 }
             }
         }
@@ -563,7 +581,13 @@ public struct RadixMenuItem: View {
             .foregroundStyle(menuForeground(active: active, palette: palette))
             .frame(height: theme.space(6))
             .padding(.horizontal, theme.space(3))
-            .background(active ? menuHighlight(palette: palette) : .clear)
+            .background(menuBackground(active: active, palette: palette))
+            .radixInteractiveGlass(
+                active: active,
+                enabled: !disabled,
+                tint: palette.accent(9).opacity(0.22),
+                in: RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+            )
             .clipShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
         }
@@ -586,6 +610,13 @@ public struct RadixMenuItem: View {
 
     private func menuHighlight(palette: RadixComponentPalette) -> Color {
         destructive ? palette.accent(9) : palette.accent(9)
+    }
+
+    @ViewBuilder
+    private func menuBackground(active: Bool, palette: RadixComponentPalette) -> some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+
+        shape.fill(active ? menuHighlight(palette: palette) : .clear)
     }
 }
 
@@ -640,7 +671,12 @@ public struct RadixMenuSubmenu<Content: View>: View {
             .foregroundStyle(isOpen ? palette.contrast() : theme.gray(12, colorScheme: colorScheme))
             .frame(height: theme.space(6))
             .padding(.horizontal, theme.space(3))
-            .background(isOpen ? palette.accent(9) : .clear)
+            .background(submenuBackground(isOpen: isOpen, palette: palette))
+            .radixInteractiveGlass(
+                active: isOpen,
+                tint: palette.accent(9).opacity(0.22),
+                in: RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+            )
             .clipShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
         }
@@ -692,6 +728,13 @@ public struct RadixMenuSubmenu<Content: View>: View {
                 isOpen = false
             }
         }
+    }
+
+    @ViewBuilder
+    private func submenuBackground(isOpen: Bool, palette: RadixComponentPalette) -> some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+
+        shape.fill(isOpen ? palette.accent(9) : .clear)
     }
 }
 
@@ -850,8 +893,10 @@ public struct RadixToolbar<Content: View>: View {
     }
 
     public var body: some View {
-        HStack(spacing: theme.space(2)) {
-            content
+        RadixGlassEffectGroup(spacing: theme.space(2)) {
+            HStack(spacing: theme.space(2)) {
+                content
+            }
         }
     }
 }
@@ -864,8 +909,10 @@ public struct RadixMenubar<Content: View>: View {
     }
 
     public var body: some View {
-        HStack(spacing: 8) {
-            content
+        RadixGlassEffectGroup(spacing: 8) {
+            HStack(spacing: 8) {
+                content
+            }
         }
     }
 }
@@ -881,8 +928,10 @@ public struct RadixNavigationMenu<Content: View>: View {
     }
 
     public var body: some View {
-        HStack(spacing: theme.space(3)) {
-            content
+        RadixGlassEffectGroup(spacing: theme.space(3)) {
+            HStack(spacing: theme.space(3)) {
+                content
+            }
         }
         .padding(theme.space(2))
         .background(theme.panel(colorScheme: colorScheme))
