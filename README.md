@@ -15,6 +15,8 @@ The package is a native SwiftUI implementation. It uses Radix naming, visual tok
 - Radix Primitives-style views such as `RadixAccordion`, `RadixCollapsible`, `RadixDialog`, `RadixAlertDialog`, `RadixDropdownMenu`, `RadixContextMenu`, `RadixPopover`, `RadixHoverCard`, `RadixTooltip`, `RadixToolbar`, `RadixMenubar`, and `RadixNavigationMenu`.
 - Layout and typography helpers including `RadixBox`, `RadixFlex`, `RadixGrid`, `RadixContainer`, `RadixSection`, `RadixText`, `RadixHeading`, `RadixCode`, `RadixKbd`, `RadixLink`, and accessibility wrappers.
 - A catalog demo executable that renders the components grouped by category and starts in dark mode.
+- And... Liquid Glass support!
+<img width="971" height="700" alt="SCR-20260506-kvzf" src="https://github.com/user-attachments/assets/9f68a852-d2a9-42de-a000-178287f25edb" />
 
 ## Requirements
 
