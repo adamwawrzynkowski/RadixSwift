@@ -599,7 +599,7 @@ public struct RadixSwitch<Label: View>: View {
         }
         .frame(width: trackWidth, height: trackHeight)
         .contentShape(Capsule())
-        .highPriorityGesture(switchDragGesture())
+        .simultaneousGesture(switchDragGesture())
     }
 
     private func switchBackground(palette: RadixComponentPalette) -> Color {

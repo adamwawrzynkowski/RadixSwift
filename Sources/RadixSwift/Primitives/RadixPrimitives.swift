@@ -417,14 +417,13 @@ public struct RadixPopover<Label: View, Content: View>: View {
     }
 
     public var body: some View {
-        Button {
-            isPresented.toggle()
-        } label: {
-            label
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
+        label
+            .contentShape(Rectangle())
+            .simultaneousGesture(triggerTapGesture)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                isPresented.toggle()
+            }
         .background(
             RadixFloatingPanel(isPresented: $isPresented, placement: .belowAnchor(offset: 4)) {
                 RadixTheme(
@@ -443,6 +442,12 @@ public struct RadixPopover<Label: View, Content: View>: View {
                 }
             }
         )
+    }
+
+    private var triggerTapGesture: some Gesture {
+        TapGesture().onEnded {
+            isPresented.toggle()
+        }
     }
 }
 
@@ -770,14 +775,13 @@ public struct RadixDropdownMenu<Label: View, Content: View>: View {
     }
 
     public var body: some View {
-        Button {
-            isPresented.toggle()
-        } label: {
-            label
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
+        label
+            .contentShape(Rectangle())
+            .simultaneousGesture(triggerTapGesture)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                isPresented.toggle()
+            }
         .background(
             RadixFloatingPanel(isPresented: $isPresented, placement: .belowAnchor(offset: 6)) {
                 RadixTheme(
@@ -799,6 +803,12 @@ public struct RadixDropdownMenu<Label: View, Content: View>: View {
                 }
             }
         )
+    }
+
+    private var triggerTapGesture: some Gesture {
+        TapGesture().onEnded {
+            isPresented.toggle()
+        }
     }
 }
 
