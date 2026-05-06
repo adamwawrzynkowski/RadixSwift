@@ -95,7 +95,7 @@ struct RadixGlassEffectGroup<Content: View>: View {
     }
 
     var body: some View {
-        if #available(macOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
             GlassEffectContainer(spacing: resolvedSpacing) {
                 content
             }
@@ -117,7 +117,7 @@ extension View {
         tint: Color? = nil,
         in shape: S
     ) -> some View {
-        if active, #available(macOS 26.0, *) {
+        if active, #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
             if let tint {
                 glassEffect(.regular.tint(tint).interactive(enabled), in: shape)
                     .glassEffectTransition(.materialize)

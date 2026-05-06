@@ -572,7 +572,7 @@ public struct RadixSwitch<Label: View>: View {
         let offset = (trackWidth - trackHeight) * progress
 
         return Group {
-            if #available(macOS 26.0, *) {
+            if #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
                 GlassEffectContainer(spacing: 3) {
                     ZStack(alignment: .leading) {
                         liquidGlassTrack(palette: palette)
@@ -617,7 +617,7 @@ public struct RadixSwitch<Label: View>: View {
         return palette.gray(5, alpha: true)
     }
 
-    @available(macOS 26.0, *)
+    @available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *)
     private func liquidGlassTrack(palette: RadixComponentPalette) -> some View {
         Capsule()
             .fill(switchLiquidGlassFill(palette: palette))
@@ -628,7 +628,7 @@ public struct RadixSwitch<Label: View>: View {
             )
     }
 
-    @available(macOS 26.0, *)
+    @available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *)
     private func liquidGlassKnob(size: CGFloat) -> some View {
         Circle()
             .fill(Color.white.opacity(colorScheme == .dark ? 0.78 : 0.86))
@@ -647,7 +647,7 @@ public struct RadixSwitch<Label: View>: View {
         return palette.gray(3, alpha: true).opacity(0.24)
     }
 
-    @available(macOS 26.0, *)
+    @available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *)
     private func switchGlass(palette: RadixComponentPalette) -> Glass {
         let glass = isOn ? Glass.regular.tint(palette.accent(9)) : Glass.regular
         return glass.interactive(isEnabled)
