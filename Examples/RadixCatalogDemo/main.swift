@@ -109,6 +109,7 @@ private struct Sidebar: View {
     @Binding var selection: CatalogCategory
 
     @Environment(\.radixTheme) private var theme
+    @Environment(\.radixAnimations) private var animations
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -130,7 +131,9 @@ private struct Sidebar: View {
                             category: category,
                             isSelected: selection == category
                         ) {
-                            selection = category
+                            animations.perform(.presence) {
+                                selection = category
+                            }
                         }
                     }
                 }
@@ -149,6 +152,7 @@ private struct SidebarRow: View {
     @State private var isHovered = false
 
     @Environment(\.radixTheme) private var theme
+    @Environment(\.radixAnimations) private var animations
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -169,9 +173,15 @@ private struct SidebarRow: View {
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
+            .scaleEffect(isHovered && !isSelected ? 1.01 : 1)
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .onHover { hovering in
+            animations.perform(.hover) {
+                isHovered = hovering
+            }
+        }
+        .animation(animations.animation(for: .hover), value: isHovered)
     }
 
     private var rowForeground: Color {
@@ -223,6 +233,8 @@ private struct DetailColumn: View {
         RadixToast(title: "Build completed", message: "RadixCatalogDemo is ready.")
     ]
 
+    @Environment(\.radixAnimations) private var animations
+
     private let planOptions = [
         RadixSelectionOption("basic", label: "Basic"),
         RadixSelectionOption("growth", label: "Growth"),
@@ -243,11 +255,14 @@ private struct DetailColumn: View {
                 RadixContainer(size: .four) {
                     RadixSection(size: .two) {
                         content
+                            .id(selection)
+                            .transition(animations.transition(for: .presence))
                     }
                     .padding(.horizontal, 28)
                 }
             }
         }
+        .animation(animations.animation(for: .presence), value: selection)
         .radixDialog(isPresented: $isDialogOpen) {
             RadixFlex(direction: .vertical, gap: 4, alignment: .leading) {
                 RadixFlex(direction: .vertical, gap: 3, alignment: .leading) {

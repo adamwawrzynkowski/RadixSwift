@@ -359,8 +359,8 @@ RadixTheme(
     accentColor: .indigo,
     animations: RadixAnimationSettings(
         durationScale: 1.2,
-        popup: RadixAnimationSpec(duration: 0.18),
-        disclosure: RadixAnimationSpec(duration: 0.2)
+        popup: RadixAnimationSpec(duration: 0.22, curve: .spring),
+        disclosure: RadixAnimationSpec(duration: 0.2, curve: .interactiveSpring)
     )
 ) {
     RadixDropdownMenu {
@@ -374,7 +374,7 @@ RadixTheme(
 }
 ```
 
-Use `RadixAnimationSettings.none` to disable component motion, or apply `.radixAnimations(...)` to a subtree when only part of an interface needs different timing.
+Use `RadixAnimationSettings.none` to disable component motion, or apply `.radixAnimations(...)` to a subtree when only part of an interface needs different timing. The default hover, press, toggle, popup, and disclosure roles use spring-based curves so repeated pointer and Liquid Glass state changes keep their momentum.
 
 ## Demo App
 

@@ -96,11 +96,13 @@ public struct RadixPresence<Content: View>: View {
     }
 
     public var body: some View {
-        if isPresent {
-            content
-                .transition(animations.transition(for: .presence))
-                .animation(animations.animation(for: .presence), value: isPresent)
+        Group {
+            if isPresent {
+                content
+                    .transition(animations.transition(for: .presence))
+            }
         }
+        .animation(animations.animation(for: .presence), value: isPresent)
     }
 }
 

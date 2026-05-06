@@ -60,7 +60,7 @@ public struct RadixAccordion<Label: View, Content: View>: View {
 
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                withAnimation(animations.animation(for: .disclosure)) {
+                animations.perform(.disclosure) {
                     isExpanded.toggle()
                 }
             } label: {
@@ -137,6 +137,7 @@ public struct RadixTabs<Value: Hashable & Sendable, Content: View>: View {
     private let content: (Value) -> Content
 
     @Environment(\.radixTheme) private var theme
+    @Environment(\.radixAnimations) private var animations
 
     public init(
         selection: Binding<Value>,
@@ -152,7 +153,10 @@ public struct RadixTabs<Value: Hashable & Sendable, Content: View>: View {
         VStack(alignment: .leading, spacing: theme.space(3)) {
             RadixSegmentedControl(selection: $selection, options: tabs)
             content(selection)
+                .id(selection)
+                .transition(animations.transition(for: .presence))
         }
+        .animation(animations.animation(for: .presence), value: selection)
     }
 }
 
@@ -161,7 +165,9 @@ public struct RadixTabNav<Value: Hashable & Sendable>: View {
     public var tabs: [RadixSelectionOption<Value>]
 
     @Environment(\.radixTheme) private var theme
+    @Environment(\.radixAnimations) private var animations
     @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var selectionNamespace
 
     public init(selection: Binding<Value>, tabs: [RadixSelectionOption<Value>]) {
         self._selection = selection
@@ -176,7 +182,9 @@ public struct RadixTabNav<Value: Hashable & Sendable>: View {
                     let shape = RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
 
                     Button {
-                        selection = tab.id
+                        animations.perform(.toggle) {
+                            selection = tab.id
+                        }
                     } label: {
                         Text(tab.label)
                             .font(theme.font(.two, weight: isSelected ? .medium : .regular))
@@ -187,7 +195,9 @@ public struct RadixTabNav<Value: Hashable & Sendable>: View {
                             .radixInteractiveGlass(
                                 active: isSelected,
                                 tint: theme.accent(9, colorScheme: colorScheme).opacity(0.16),
-                                in: shape
+                                in: shape,
+                                effectID: "tab-selection",
+                                namespace: selectionNamespace
                             )
                             .clipShape(shape)
                             .contentShape(shape)
@@ -196,6 +206,7 @@ public struct RadixTabNav<Value: Hashable & Sendable>: View {
                 }
             }
         }
+        .animation(animations.animation(for: .toggle), value: selection)
     }
 }
 
@@ -275,7 +286,9 @@ public struct RadixDialog<DialogContent: View>: ViewModifier {
                         theme.overlay(colorScheme: colorScheme)
                             .ignoresSafeArea()
                             .onTapGesture {
-                                isPresented = false
+                                animations.perform(.dialog) {
+                                    isPresented = false
+                                }
                             }
 
                         RadixTheme(animations: animations, hasBackground: false) {
@@ -355,7 +368,9 @@ public struct RadixAlertDialog: ViewModifier {
                         theme.overlay(colorScheme: colorScheme)
                             .ignoresSafeArea()
                             .onTapGesture {
-                                isPresented = false
+                                animations.perform(.dialog) {
+                                    isPresented = false
+                                }
                             }
 
                         RadixTheme(animations: animations, hasBackground: false) {
@@ -375,11 +390,15 @@ public struct RadixAlertDialog: ViewModifier {
                                 HStack(spacing: theme.space(3)) {
                                     Spacer()
                                     RadixButton(cancelTitle.localizedKey, variant: .soft) {
-                                        isPresented = false
+                                        animations.perform(.dialog) {
+                                            isPresented = false
+                                        }
                                     }
                                     RadixButton(confirmTitle.localizedKey, variant: .solid, color: destructive ? .red : nil) {
-                                        isPresented = false
-                                        onConfirm()
+                                        animations.perform(.dialog) {
+                                            isPresented = false
+                                            onConfirm()
+                                        }
                                     }
                                 }
                             }
@@ -422,7 +441,9 @@ public struct RadixPopover<Label: View, Content: View>: View {
             .simultaneousGesture(triggerTapGesture)
             .accessibilityAddTraits(.isButton)
             .accessibilityAction {
-                isPresented.toggle()
+                animations.perform(.popup) {
+                    isPresented.toggle()
+                }
             }
         .background(
             RadixFloatingPanel(isPresented: $isPresented, placement: .belowAnchor(offset: 4)) {
@@ -446,7 +467,9 @@ public struct RadixPopover<Label: View, Content: View>: View {
 
     private var triggerTapGesture: some Gesture {
         TapGesture().onEnded {
-            isPresented.toggle()
+            animations.perform(.popup) {
+                isPresented.toggle()
+            }
         }
     }
 }
@@ -466,7 +489,11 @@ public struct RadixHoverCard<Label: View, Content: View>: View {
     public var body: some View {
         label
             .contentShape(Rectangle())
-            .onHover { isPresented = $0 }
+            .onHover { hovering in
+                animations.perform(.hover) {
+                    isPresented = hovering
+                }
+            }
             .background(
                 RadixFloatingPanel(isPresented: $isPresented, placement: .belowAnchor(offset: 4)) {
                     RadixTheme(
@@ -553,6 +580,8 @@ public struct RadixMenuItem: View {
     public var body: some View {
         let active = !disabled && (highlighted || isHovered)
         let palette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: destructive ? .red : nil)
+        let radius = theme.radius(2)
+        let activeInset: CGFloat = 2
 
         Button {
             guard !disabled else { return }
@@ -586,21 +615,22 @@ public struct RadixMenuItem: View {
             .foregroundStyle(menuForeground(active: active, palette: palette))
             .frame(height: theme.space(6))
             .padding(.horizontal, theme.space(3))
-            .background(menuBackground(active: active, palette: palette))
+            .background(menuBackground(active: active, inset: activeInset, radius: radius, palette: palette))
             .radixInteractiveGlass(
                 active: active,
                 enabled: !disabled,
                 tint: palette.accent(9).opacity(0.22),
-                in: RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+                in: RadixInsetRoundedRectangle(cornerRadius: radius, verticalInset: activeInset)
             )
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.55 : 1)
-        .onHover { isHovered = $0 }
-        .animation(animations.animation(for: .hover), value: active)
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 
     private func menuForeground(active: Bool, palette: RadixComponentPalette) -> Color {
@@ -618,10 +648,13 @@ public struct RadixMenuItem: View {
     }
 
     @ViewBuilder
-    private func menuBackground(active: Bool, palette: RadixComponentPalette) -> some View {
-        let shape = RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+    private func menuBackground(active: Bool, inset: CGFloat, radius: CGFloat, palette: RadixComponentPalette) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
-        shape.fill(active ? menuHighlight(palette: palette) : .clear)
+        shape
+            .fill(active ? menuHighlight(palette: palette) : .clear)
+            .padding(.vertical, inset)
+            .animation(animations.animation(for: .hover), value: active)
     }
 }
 
@@ -660,6 +693,8 @@ public struct RadixMenuSubmenu<Content: View>: View {
 
     public var body: some View {
         let palette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: nil)
+        let radius = theme.radius(2)
+        let activeInset: CGFloat = 2
 
         Button {
             isOpen = true
@@ -676,21 +711,22 @@ public struct RadixMenuSubmenu<Content: View>: View {
             .foregroundStyle(isOpen ? palette.contrast() : theme.gray(12, colorScheme: colorScheme))
             .frame(height: theme.space(6))
             .padding(.horizontal, theme.space(3))
-            .background(submenuBackground(isOpen: isOpen, palette: palette))
+            .background(submenuBackground(isOpen: isOpen, inset: activeInset, radius: radius, palette: palette))
             .radixInteractiveGlass(
                 active: isOpen,
                 tint: palette.accent(9).opacity(0.22),
-                in: RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+                in: RadixInsetRoundedRectangle(cornerRadius: radius, verticalInset: activeInset)
             )
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
         .buttonStyle(.plain)
         .onHover { hovering in
             rowHovered = hovering
             if hovering {
                 isOpen = true
-            } else {
+            }
+            if !hovering {
                 closeIfIdleSoon()
             }
         }
@@ -717,14 +753,14 @@ public struct RadixMenuSubmenu<Content: View>: View {
                         panelHovered = hovering
                         if hovering {
                             isOpen = true
-                        } else {
+                        }
+                        if !hovering {
                             closeIfIdleSoon()
                         }
                     }
                 }
             }
         )
-        .animation(animations.animation(for: .popup), value: isOpen)
     }
 
     private func closeIfIdleSoon() {
@@ -736,10 +772,13 @@ public struct RadixMenuSubmenu<Content: View>: View {
     }
 
     @ViewBuilder
-    private func submenuBackground(isOpen: Bool, palette: RadixComponentPalette) -> some View {
-        let shape = RoundedRectangle(cornerRadius: theme.radius(2), style: .continuous)
+    private func submenuBackground(isOpen: Bool, inset: CGFloat, radius: CGFloat, palette: RadixComponentPalette) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
-        shape.fill(isOpen ? palette.accent(9) : .clear)
+        shape
+            .fill(isOpen ? palette.accent(9) : .clear)
+            .padding(.vertical, inset)
+            .animation(animations.animation(for: .hover), value: isOpen)
     }
 }
 
@@ -780,7 +819,9 @@ public struct RadixDropdownMenu<Label: View, Content: View>: View {
             .simultaneousGesture(triggerTapGesture)
             .accessibilityAddTraits(.isButton)
             .accessibilityAction {
-                isPresented.toggle()
+                animations.perform(.popup) {
+                    isPresented.toggle()
+                }
             }
         .background(
             RadixFloatingPanel(isPresented: $isPresented, placement: .belowAnchor(offset: 6)) {
@@ -807,7 +848,9 @@ public struct RadixDropdownMenu<Label: View, Content: View>: View {
 
     private var triggerTapGesture: some Gesture {
         TapGesture().onEnded {
-            isPresented.toggle()
+            animations.perform(.popup) {
+                isPresented.toggle()
+            }
         }
     }
 }
@@ -829,8 +872,10 @@ public struct RadixContextMenu<MenuContent: View, Content: View>: View {
         RadixSecondaryClickHost {
             content
         } onRightClick: { location in
-            menuLocation = location
-            isPresented = true
+            animations.perform(.popup) {
+                menuLocation = location
+                isPresented = true
+            }
         }
         .background(
             RadixFloatingPanel(isPresented: $isPresented, placement: .point(menuLocation)) {
@@ -873,7 +918,11 @@ public struct RadixTooltip<Content: View>: View {
     public var body: some View {
         content
             .contentShape(Rectangle())
-            .onHover { isPresented = $0 }
+            .onHover { hovering in
+                animations.perform(.hover) {
+                    isPresented = hovering
+                }
+            }
             .overlay(alignment: .top) {
                 if isPresented {
                     Text(text)
