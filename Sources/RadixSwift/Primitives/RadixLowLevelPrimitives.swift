@@ -132,15 +132,90 @@ public struct RadixFocusGuards<Content: View>: View {
 
 public struct RadixDismissableLayer<Content: View>: View {
     public var onDismiss: () -> Void
+    public var dismissesOnOutsidePress: Bool
     private let content: Content
 
-    public init(onDismiss: @escaping () -> Void, @ViewBuilder content: () -> Content) {
+    public init(
+        dismissesOnOutsidePress: Bool = true,
+        onDismiss: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) {
         self.onDismiss = onDismiss
+        self.dismissesOnOutsidePress = dismissesOnOutsidePress
         self.content = content()
     }
 
     public var body: some View {
-        content.onExitCommand(perform: onDismiss)
+        content
+            .background(
+                RadixDismissableLayerHost(
+                    isEnabled: dismissesOnOutsidePress,
+                    onDismiss: RadixDismissAction(onDismiss)
+                )
+            )
+            .onExitCommand(perform: onDismiss)
+    }
+}
+
+private final class RadixDismissAction: @unchecked Sendable {
+    private let action: () -> Void
+
+    init(_ action: @escaping () -> Void) {
+        self.action = action
+    }
+
+    @MainActor func callAsFunction() {
+        action()
+    }
+}
+
+private struct RadixDismissableLayerHost: NSViewRepresentable {
+    var isEnabled: Bool
+    var onDismiss: RadixDismissAction
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        view.postsFrameChangedNotifications = true
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.update(
+            anchor: nsView,
+            isEnabled: isEnabled,
+            onDismiss: onDismiss
+        )
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.close()
+    }
+
+    @MainActor final class Coordinator {
+        private let dismissalMonitor = RadixDismissalMonitor()
+
+        func update(
+            anchor: NSView,
+            isEnabled: Bool,
+            onDismiss: RadixDismissAction
+        ) {
+            guard isEnabled, anchor.window != nil else {
+                close()
+                return
+            }
+
+            dismissalMonitor.update(anchor: anchor) {
+                onDismiss()
+            }
+        }
+
+        func close() {
+            dismissalMonitor.close()
+        }
     }
 }
 

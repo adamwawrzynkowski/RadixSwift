@@ -228,6 +228,100 @@ struct RadixPopupPanel<Content: View>: View {
     }
 }
 
+@MainActor
+final class RadixDismissalMonitor {
+    private var eventMonitor: Any?
+    private var deactivationObserver: NSObjectProtocol?
+    private weak var anchor: NSView?
+    private weak var allowedWindow: NSWindow?
+    private var onDismiss: (@MainActor () -> Void)?
+
+    /// <summary>
+    /// Watches for app-level interactions that land outside the active layer, then asks its owner to dismiss.
+    /// </summary>
+    func update(
+        anchor: NSView,
+        allowedWindow: NSWindow? = nil,
+        onDismiss: @escaping @MainActor () -> Void
+    ) {
+        self.anchor = anchor
+        self.allowedWindow = allowedWindow
+        self.onDismiss = onDismiss
+        installEventMonitor()
+        installDeactivationObserver()
+    }
+
+    func close() {
+        if let eventMonitor {
+            NSEvent.removeMonitor(eventMonitor)
+            self.eventMonitor = nil
+        }
+
+        if let deactivationObserver {
+            NotificationCenter.default.removeObserver(deactivationObserver)
+            self.deactivationObserver = nil
+        }
+
+        anchor = nil
+        allowedWindow = nil
+        onDismiss = nil
+    }
+
+    private func installEventMonitor() {
+        guard eventMonitor == nil else { return }
+
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]) { [weak self] event in
+            guard let self else { return event }
+
+            if event.type == .keyDown {
+                guard event.keyCode == 53 else { return event }
+                dismiss()
+                return nil
+            }
+
+            if isEventInsideLayer(event) {
+                return event
+            }
+
+            dismiss()
+            return event
+        }
+    }
+
+    private func installDeactivationObserver() {
+        guard deactivationObserver == nil else { return }
+
+        deactivationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: NSApp,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.dismiss()
+            }
+        }
+    }
+
+    private func dismiss() {
+        onDismiss?()
+    }
+
+    private func isEventInsideLayer(_ event: NSEvent) -> Bool {
+        if event.window === allowedWindow {
+            return true
+        }
+
+        return isEventInsideAnchor(event)
+    }
+
+    private func isEventInsideAnchor(_ event: NSEvent) -> Bool {
+        guard let anchor, event.window === anchor.window else { return false }
+
+        let frame = anchor.convert(anchor.bounds, to: nil)
+        return frame.contains(event.locationInWindow)
+    }
+}
+
 enum RadixFloatingPanelPlacement {
     case belowAnchor(offset: CGFloat = 4)
     case rightOfAnchor(offset: CGFloat = 4)
@@ -279,7 +373,7 @@ struct RadixFloatingPanel<PanelContent: View>: NSViewRepresentable {
     @MainActor final class Coordinator {
         private var panel: NSPanel?
         private var hostingView: NSHostingView<PanelContent>?
-        private var monitor: Any?
+        private let dismissalMonitor = RadixDismissalMonitor()
         private weak var anchor: NSView?
 
         func update(
@@ -310,11 +404,13 @@ struct RadixFloatingPanel<PanelContent: View>: NSViewRepresentable {
             }
             popup.setContentSize(panelSize)
             popup.setFrameOrigin(origin(for: anchor, placement: placement, size: panelSize))
+            dismissalMonitor.update(anchor: anchor, allowedWindow: popup) {
+                binding.wrappedValue = false
+            }
 
             if panel == nil {
                 panel = popup
                 orderFront(popup, animations: animations)
-                installMonitor(binding: binding)
             } else if !popup.isVisible {
                 orderFront(popup, animations: animations)
             }
@@ -349,33 +445,8 @@ struct RadixFloatingPanel<PanelContent: View>: NSViewRepresentable {
             popup.hasShadow = false
             popup.level = .popUpMenu
             popup.collectionBehavior = [.transient, .ignoresCycle]
-            popup.hidesOnDeactivate = false
+            popup.hidesOnDeactivate = true
             return popup
-        }
-
-        private func installMonitor(binding: Binding<Bool>) {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
-                guard let self else { return event }
-
-                if event.type == .keyDown, event.keyCode == 53 {
-                    binding.wrappedValue = false
-                    return nil
-                }
-
-                if event.window === panel || isEventInsideAnchor(event) {
-                    return event
-                }
-
-                binding.wrappedValue = false
-                return event
-            }
-        }
-
-        private func isEventInsideAnchor(_ event: NSEvent) -> Bool {
-            guard let anchor, event.window === anchor.window else { return false }
-
-            let frame = anchor.convert(anchor.bounds, to: nil)
-            return frame.contains(event.locationInWindow)
         }
 
         private func origin(for anchor: NSView, placement: RadixFloatingPanelPlacement, size: NSSize) -> NSPoint {
@@ -442,10 +513,7 @@ struct RadixFloatingPanel<PanelContent: View>: NSViewRepresentable {
         /// Tears down the panel immediately for cleanup, or fades it out for normal UI dismissals.
         /// </summary>
         func close(animations: RadixAnimationSettings? = nil) {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-                self.monitor = nil
-            }
+            dismissalMonitor.close()
 
             guard let popup = panel else {
                 hostingView = nil
