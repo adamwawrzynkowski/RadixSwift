@@ -3,7 +3,7 @@ import Testing
 
 @Test func generatedRadixAssetsArePresent() {
     #expect(RadixIconName.allCases.count == 332)
-    #expect(RadixThemeComponentName.allCases.count == 58)
+    #expect(RadixThemeComponentName.allCases.count == 59)
     #expect(RadixPrimitiveName.allCases.count == 58)
     #expect(RadixColorCatalog.shared.exportNames.count == 252)
 }

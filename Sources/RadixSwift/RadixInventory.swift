@@ -41,6 +41,7 @@ public enum RadixThemeComponentName: String, CaseIterable, Identifiable, Sendabl
     case segmentedControl = "segmented-control"
     case select = "select"
     case separator = "separator"
+    case segmentedButtonGroup = "segmented-button-group"
     case skeleton = "skeleton"
     case slider = "slider"
     case slot = "slot"
