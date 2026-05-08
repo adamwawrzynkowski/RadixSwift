@@ -213,7 +213,7 @@ struct SettingsForm: View {
 
 ## Segmented Button Groups
 
-Use `RadixSegmentedButtonGroup` when each segment acts like a button but the group should feel like one continuous control. It supports text-only, icon-only, icon-and-text, badges, and horizontal or vertical orientation.
+Use `RadixSegmentedButtonGroup` when each segment acts like a button but the group should feel like one continuous control. It supports text-only, icon-only, icon-and-text, badges, explicit separators, and horizontal or vertical orientation.
 
 ```swift
 struct ViewModePicker: View {
@@ -226,7 +226,7 @@ struct ViewModePicker: View {
             icon: .clock,
             badge: RadixSegmentedButtonBadge("1", color: .amber)
         ),
-        RadixSegmentedButtonGroupItem("docs", label: "Docs", icon: .fileText),
+        RadixSegmentedButtonGroupItem("docs", label: "Docs", icon: .fileText, separatorBefore: true),
         RadixSegmentedButtonGroupItem(
             "grid",
             label: "Grid",
@@ -254,7 +254,24 @@ struct ViewModePicker: View {
 }
 ```
 
-The `label` is always used for accessibility, even when `display` is `.icon`. Badges are optional per item and follow Radix accent colors.
+Display modes:
+
+- `.text`: shows only labels.
+- `.icon`: shows only icons when an icon exists. The item label is still used for accessibility and appears in an automatic hover popup.
+- `.iconAndText`: shows icon and label together.
+
+Sizing and layout:
+
+- Horizontal groups size each segment from its own content, so short and long labels can have different widths.
+- Vertical groups use the widest segment as the shared row width, so selection and hover states line up with the container.
+- Text is kept at its natural width inside the segment instead of being truncated.
+- Badged items reserve trailing space for the badge, so the badge does not cover the label.
+
+Separators:
+
+- Normal adjacent items do not draw separator lines.
+- Use `separatorBefore: true` on an item to start a new visual cluster.
+- Explicit separators keep the group spacing and draw the visible line, for example `[A][B][C] | [D][E]`.
 
 ## Menus and Context Menus
 

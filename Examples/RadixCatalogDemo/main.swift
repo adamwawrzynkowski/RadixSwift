@@ -952,14 +952,16 @@ private struct SegmentedButtonGroupDemo: View {
     private let textItems: [RadixSegmentedButtonGroupItem<String>] = [
         RadixSegmentedButtonGroupItem("a", label: "A"),
         RadixSegmentedButtonGroupItem("b", label: "B"),
-        RadixSegmentedButtonGroupItem("c", label: "C")
+        RadixSegmentedButtonGroupItem("c", label: "C"),
+        RadixSegmentedButtonGroupItem("d", label: "D", separatorBefore: true),
+        RadixSegmentedButtonGroupItem("e", label: "E")
     ]
 
     private let iconItems: [RadixSegmentedButtonGroupItem<String>] = [
         RadixSegmentedButtonGroupItem("layers", label: "Layers", icon: .layers),
         RadixSegmentedButtonGroupItem("globe", label: "World", icon: .globe),
         RadixSegmentedButtonGroupItem("bookmark", label: "Saved", icon: .bookmark),
-        RadixSegmentedButtonGroupItem("box", label: "Archive", icon: .box),
+        RadixSegmentedButtonGroupItem("box", label: "Archive", icon: .box, separatorBefore: true),
         RadixSegmentedButtonGroupItem("trash", label: "Trash", icon: .trash),
         RadixSegmentedButtonGroupItem("reader", label: "Reader", icon: .reader)
     ]
