@@ -1192,17 +1192,20 @@ public struct RadixSegmentedButtonGroupItem<Value: Hashable>: Identifiable, Hash
     public var label: String
     public var icon: RadixIconName?
     public var badge: RadixSegmentedButtonBadge?
+    public var separatorBefore: Bool
 
     public init(
         _ value: Value,
         label: String,
         icon: RadixIconName? = nil,
-        badge: RadixSegmentedButtonBadge? = nil
+        badge: RadixSegmentedButtonBadge? = nil,
+        separatorBefore: Bool = false
     ) {
         self.id = value
         self.label = label
         self.icon = icon
         self.badge = badge
+        self.separatorBefore = separatorBefore
     }
 }
 
@@ -1268,7 +1271,7 @@ public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
                 itemButtons(metrics: metrics, palette: palette)
             }
         } else {
-            VStack(spacing: 0) {
+            RadixSegmentedButtonGroupVerticalLayout {
                 itemButtons(metrics: metrics, palette: palette)
             }
         }
@@ -1277,16 +1280,43 @@ public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
     @ViewBuilder
     private func itemButtons(metrics: RadixControlMetrics, palette: RadixComponentPalette) -> some View {
         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-            segmentedButton(for: item, metrics: metrics, palette: palette)
-
-            if index < items.count - 1 {
-                separator(
-                    left: item.id,
-                    right: items[index + 1].id,
-                    metrics: metrics,
-                    palette: palette
-                )
+            if index > 0 {
+                if item.separatorBefore {
+                    groupSeparator(metrics: metrics, palette: palette)
+                } else {
+                    segmentGap(metrics: metrics)
+                }
             }
+
+            segmentedButton(for: item, metrics: metrics, palette: palette)
+        }
+    }
+
+    @ViewBuilder
+    private func groupSeparator(metrics: RadixControlMetrics, palette: RadixComponentPalette) -> some View {
+        if orientation == .horizontal {
+            Rectangle()
+                .fill(palette.gray(6, alpha: true))
+                .frame(width: 1, height: max(metrics.height - itemInset * 4, 1))
+                .padding(.horizontal, groupSeparatorSpacing)
+        } else {
+            Rectangle()
+                .fill(palette.gray(6, alpha: true))
+                .frame(width: itemMinWidth(metrics: metrics), height: 1)
+                .padding(.vertical, groupSeparatorSpacing)
+                .padding(.horizontal, theme.space(2))
+        }
+    }
+
+    @ViewBuilder
+    private func segmentGap(metrics: RadixControlMetrics) -> some View {
+        if orientation == .horizontal {
+            Color.clear
+                .frame(width: 1, height: max(metrics.height - itemInset * 4, 1))
+        } else {
+            Color.clear
+                .frame(width: itemMinWidth(metrics: metrics), height: 1)
+                .padding(.horizontal, theme.space(2))
         }
     }
 
@@ -1312,13 +1342,19 @@ public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
                     .padding(.horizontal, itemHorizontalPadding)
                     .padding(.vertical, 1)
             }
-            .frame(minWidth: itemMinWidth(metrics: metrics), minHeight: metrics.height)
+            .frame(
+                minWidth: itemMinWidth(metrics: metrics),
+                maxWidth: orientation == .vertical ? .infinity : nil,
+                minHeight: metrics.height
+            )
             .frame(height: metrics.height)
+            .fixedSize(horizontal: orientation == .horizontal, vertical: false)
             .contentShape(shape)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(item.label))
         .accessibilityValue(isSelected ? Text("Selected") : Text(""))
+        .background(itemNamePopup(for: item))
         .onHover { hovering in
             guard isEnabled else { return }
 
@@ -1341,7 +1377,7 @@ public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
         palette: RadixComponentPalette
     ) -> some View {
         let showsIcon = display != .text && item.icon != nil
-        let showsText = display != .icon || item.icon == nil
+        let showsText = showsText(for: item)
         let spacing = showsIcon && showsText ? theme.space(2) : 0
 
         return HStack(spacing: spacing) {
@@ -1354,9 +1390,11 @@ public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
                 Text(item.label)
                     .font(theme.font(textSize, weight: isSelected ? .medium : .regular))
                     .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
         }
         .padding(.trailing, item.badge == nil ? 0 : badgeReservedWidth)
+        .fixedSize(horizontal: true, vertical: false)
         .foregroundStyle(itemForeground(isSelected: isSelected, palette: palette))
         .overlay(alignment: .topTrailing) {
             if let badge = item.badge {
@@ -1395,26 +1433,47 @@ public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
     }
 
     @ViewBuilder
-    private func separator(
-        left: Value,
-        right: Value,
-        metrics: RadixControlMetrics,
-        palette: RadixComponentPalette
-    ) -> some View {
-        let opacity = separatorOpacity(left: left, right: right)
-
-        if orientation == .horizontal {
-            Rectangle()
-                .fill(palette.gray(5, alpha: true))
-                .frame(width: 1, height: max(metrics.height - itemInset * 4, 1))
-                .opacity(opacity)
-        } else {
-            Rectangle()
-                .fill(palette.gray(5, alpha: true))
-                .frame(width: itemMinWidth(metrics: metrics), height: 1)
-                .padding(.horizontal, theme.space(2))
-                .opacity(opacity)
+    private func itemNamePopup(for item: RadixSegmentedButtonGroupItem<Value>) -> some View {
+        if shouldShowNamePopup(for: item) {
+            RadixFloatingPanel(isPresented: namePopupBinding(for: item.id), placement: .belowAnchor(offset: 6)) {
+                RadixTheme(
+                    appearance: theme.appearance,
+                    accentColor: theme.accentColor,
+                    grayColor: theme.grayColor,
+                    panelBackground: theme.panelBackground,
+                    radius: theme.radius,
+                    scaling: theme.scaling,
+                    animations: animations,
+                    hasBackground: false
+                ) {
+                    RadixPopupPanel(size: .one) {
+                        Text(item.label)
+                            .font(theme.font(.one, weight: .medium))
+                            .foregroundStyle(theme.gray(12, colorScheme: colorScheme))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                }
+            }
         }
+    }
+
+    private func namePopupBinding(for itemID: Value) -> Binding<Bool> {
+        Binding {
+            hoveredItem == itemID && isEnabled
+        } set: { isPresented in
+            if !isPresented, hoveredItem == itemID {
+                hoveredItem = nil
+            }
+        }
+    }
+
+    private func shouldShowNamePopup(for item: RadixSegmentedButtonGroupItem<Value>) -> Bool {
+        !showsText(for: item) && !item.label.isEmpty
+    }
+
+    private func showsText(for item: RadixSegmentedButtonGroupItem<Value>) -> Bool {
+        display != .icon || item.icon == nil
     }
 
     private func badgeView(_ badge: RadixSegmentedButtonBadge) -> some View {
@@ -1445,6 +1504,13 @@ public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
         switch size {
         case .one: 1
         default: 2
+        }
+    }
+
+    private var groupSeparatorSpacing: CGFloat {
+        switch size {
+        case .one: theme.space(1)
+        default: theme.space(2)
         }
     }
 
@@ -1616,16 +1682,42 @@ public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
         }
     }
 
-    private func separatorOpacity(left: Value, right: Value) -> Double {
-        if selection == left || selection == right {
-            return 0
-        }
+}
 
-        if hoveredItem == left || hoveredItem == right {
-            return 0
-        }
+private struct RadixSegmentedButtonGroupVerticalLayout: Layout {
+    /// <summary>
+    /// Measures the natural row widths, then gives every vertical segment the widest row width.
+    /// </summary>
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let width = sizes.map(\.width).max() ?? 0
+        let height = sizes.reduce(CGFloat.zero) { $0 + $1.height }
 
-        return 1
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        var y = bounds.minY
+
+        for subview in subviews {
+            let rowSize = subview.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil))
+
+            subview.place(
+                at: CGPoint(x: bounds.midX, y: y),
+                anchor: .top,
+                proposal: ProposedViewSize(width: bounds.width, height: rowSize.height)
+            )
+            y += rowSize.height
+        }
     }
 }
 
