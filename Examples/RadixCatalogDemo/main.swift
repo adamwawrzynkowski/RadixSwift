@@ -526,6 +526,10 @@ private struct DetailColumn: View {
 
     private var actions: some View {
         CategoryStack {
+            ComponentSection("Segmented Button Group") {
+                SegmentedButtonGroupDemo()
+            }
+
             ComponentSection("Buttons and Variants") {
                 ButtonVariantMatrix()
             }
@@ -931,6 +935,114 @@ private struct RadixPreviewFrame: ViewModifier {
                 RoundedRectangle(cornerRadius: theme.radius(4), style: .continuous)
                     .stroke(theme.gray(6, alpha: true, colorScheme: colorScheme), lineWidth: 1)
             )
+    }
+}
+
+private struct SegmentedButtonGroupDemo: View {
+    @State private var textSelection = "a"
+    @State private var iconSelection = "layers"
+    @State private var mixedSelection = "activity"
+    @State private var verticalTextSelection = "a"
+    @State private var verticalIconSelection = "layers"
+    @State private var verticalMixedSelection = "activity"
+
+    @Environment(\.radixTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
+
+    private let textItems: [RadixSegmentedButtonGroupItem<String>] = [
+        RadixSegmentedButtonGroupItem("a", label: "A"),
+        RadixSegmentedButtonGroupItem("b", label: "B"),
+        RadixSegmentedButtonGroupItem("c", label: "C")
+    ]
+
+    private let iconItems: [RadixSegmentedButtonGroupItem<String>] = [
+        RadixSegmentedButtonGroupItem("layers", label: "Layers", icon: .layers),
+        RadixSegmentedButtonGroupItem("globe", label: "World", icon: .globe),
+        RadixSegmentedButtonGroupItem("bookmark", label: "Saved", icon: .bookmark),
+        RadixSegmentedButtonGroupItem("box", label: "Archive", icon: .box),
+        RadixSegmentedButtonGroupItem("trash", label: "Trash", icon: .trash),
+        RadixSegmentedButtonGroupItem("reader", label: "Reader", icon: .reader)
+    ]
+
+    private let mixedItems: [RadixSegmentedButtonGroupItem<String>] = [
+        RadixSegmentedButtonGroupItem("activity", label: "Activity", icon: .clock, badge: RadixSegmentedButtonBadge("1", color: .amber)),
+        RadixSegmentedButtonGroupItem("docs", label: "Docs", icon: .fileText),
+        RadixSegmentedButtonGroupItem("grid", label: "Grid", icon: .component1, badge: RadixSegmentedButtonBadge("3", color: .blue))
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: theme.space(4)) {
+            HStack(alignment: .top, spacing: theme.space(6)) {
+                demoColumn("Text") {
+                    RadixSegmentedButtonGroup(
+                        selection: $textSelection,
+                        items: textItems,
+                        display: .text
+                    )
+                }
+
+                demoColumn("Icons") {
+                    RadixSegmentedButtonGroup(
+                        selection: $iconSelection,
+                        items: iconItems,
+                        display: .icon,
+                        size: .three
+                    )
+                }
+
+                demoColumn("Icon + text + badges") {
+                    RadixSegmentedButtonGroup(
+                        selection: $mixedSelection,
+                        items: mixedItems,
+                        display: .iconAndText,
+                        color: .blue
+                    )
+                }
+            }
+
+            HStack(alignment: .top, spacing: theme.space(6)) {
+                demoColumn("Vertical text") {
+                    RadixSegmentedButtonGroup(
+                        selection: $verticalTextSelection,
+                        items: textItems,
+                        orientation: .vertical,
+                        display: .text
+                    )
+                }
+
+                demoColumn("Vertical icons") {
+                    RadixSegmentedButtonGroup(
+                        selection: $verticalIconSelection,
+                        items: Array(iconItems.prefix(4)),
+                        orientation: .vertical,
+                        display: .icon,
+                        size: .three
+                    )
+                }
+
+                demoColumn("Vertical badges") {
+                    RadixSegmentedButtonGroup(
+                        selection: $verticalMixedSelection,
+                        items: mixedItems,
+                        orientation: .vertical,
+                        display: .iconAndText,
+                        color: .amber
+                    )
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func demoColumn<Content: View>(
+        _ title: LocalizedStringKey,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: theme.space(2)) {
+            RadixText(title, size: .one, weight: .medium)
+                .foregroundStyle(theme.gray(11, colorScheme: colorScheme))
+            content()
+        }
     }
 }
 

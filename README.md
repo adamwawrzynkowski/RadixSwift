@@ -11,7 +11,7 @@ The package is a native SwiftUI implementation. It uses Radix naming, visual tok
 - `RadixTheme` and `RadixThemeValues` for appearance, accent color, gray color, panel background, radius, scaling, and motion.
 - `RadixColorCatalog` with generated Radix color exports and theme color metadata.
 - `RadixIcon` and `RadixIconName` with the original Radix Icons SVG set rendered as native SwiftUI shapes.
-- Styled Radix Themes components such as `RadixButton`, `RadixIconButton`, `RadixCard`, `RadixBadge`, `RadixCallout`, `RadixTextField`, `RadixSelect`, `RadixTabs`, and `RadixThemePanel`.
+- Styled Radix Themes components such as `RadixButton`, `RadixIconButton`, `RadixSegmentedButtonGroup`, `RadixCard`, `RadixBadge`, `RadixCallout`, `RadixTextField`, `RadixSelect`, `RadixTabs`, and `RadixThemePanel`.
 - Radix Primitives-style views such as `RadixAccordion`, `RadixCollapsible`, `RadixDialog`, `RadixAlertDialog`, `RadixDropdownMenu`, `RadixContextMenu`, `RadixPopover`, `RadixHoverCard`, `RadixTooltip`, `RadixToolbar`, `RadixMenubar`, and `RadixNavigationMenu`.
 - Layout and typography helpers including `RadixBox`, `RadixFlex`, `RadixGrid`, `RadixContainer`, `RadixSection`, `RadixText`, `RadixHeading`, `RadixCode`, `RadixKbd`, `RadixLink`, and accessibility wrappers.
 - A catalog demo executable that renders the components grouped by category and starts in dark mode.
@@ -211,6 +211,51 @@ struct SettingsForm: View {
 }
 ```
 
+## Segmented Button Groups
+
+Use `RadixSegmentedButtonGroup` when each segment acts like a button but the group should feel like one continuous control. It supports text-only, icon-only, icon-and-text, badges, and horizontal or vertical orientation.
+
+```swift
+struct ViewModePicker: View {
+    @State private var viewMode = "activity"
+
+    private let modes = [
+        RadixSegmentedButtonGroupItem(
+            "activity",
+            label: "Activity",
+            icon: .clock,
+            badge: RadixSegmentedButtonBadge("1", color: .amber)
+        ),
+        RadixSegmentedButtonGroupItem("docs", label: "Docs", icon: .fileText),
+        RadixSegmentedButtonGroupItem(
+            "grid",
+            label: "Grid",
+            icon: .component1,
+            badge: RadixSegmentedButtonBadge("3", color: .blue)
+        )
+    ]
+
+    var body: some View {
+        RadixFlex(direction: .vertical, gap: 3, alignment: .leading) {
+            RadixSegmentedButtonGroup(
+                selection: $viewMode,
+                items: modes,
+                display: .iconAndText
+            )
+
+            RadixSegmentedButtonGroup(
+                selection: $viewMode,
+                items: modes,
+                orientation: .vertical,
+                display: .icon
+            )
+        }
+    }
+}
+```
+
+The `label` is always used for accessibility, even when `display` is `.icon`. Badges are optional per item and follow Radix accent colors.
+
 ## Menus and Context Menus
 
 Menus are rendered with Radix-style SwiftUI panels instead of default macOS menu chrome.
@@ -398,7 +443,7 @@ swift test
 The package includes generated inventories for the upstream Radix source surface:
 
 - `RadixIconName`: 332 icons from `radix-ui/icons`.
-- `RadixThemeComponentName`: 58 Radix Themes component names.
+- `RadixThemeComponentName`: 59 Radix Themes component names.
 - `RadixPrimitiveName`: 58 Radix Primitives package names.
 - `RadixColorCatalog.shared.exportNames`: 252 color exports from `radix-ui/colors`.
 

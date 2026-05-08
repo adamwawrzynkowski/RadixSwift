@@ -1171,6 +1171,464 @@ public struct RadixSegmentedControl<Value: Hashable & Sendable>: View {
     }
 }
 
+public enum RadixSegmentedButtonGroupDisplay: Equatable, Sendable {
+    case text
+    case icon
+    case iconAndText
+}
+
+public struct RadixSegmentedButtonBadge: Hashable, Sendable {
+    public var text: String
+    public var color: RadixAccentColor?
+
+    public init(_ text: String, color: RadixAccentColor? = nil) {
+        self.text = text
+        self.color = color
+    }
+}
+
+public struct RadixSegmentedButtonGroupItem<Value: Hashable>: Identifiable, Hashable, Sendable where Value: Sendable {
+    public let id: Value
+    public var label: String
+    public var icon: RadixIconName?
+    public var badge: RadixSegmentedButtonBadge?
+
+    public init(
+        _ value: Value,
+        label: String,
+        icon: RadixIconName? = nil,
+        badge: RadixSegmentedButtonBadge? = nil
+    ) {
+        self.id = value
+        self.label = label
+        self.icon = icon
+        self.badge = badge
+    }
+}
+
+public struct RadixSegmentedButtonGroup<Value: Hashable & Sendable>: View {
+    @Binding private var selection: Value
+    public var items: [RadixSegmentedButtonGroupItem<Value>]
+    public var orientation: RadixOrientation
+    public var display: RadixSegmentedButtonGroupDisplay
+    public var size: RadixSize
+    public var variant: RadixThemeVariant
+    public var color: RadixAccentColor?
+    @State private var hoveredItem: Value?
+
+    @Environment(\.radixTheme) private var theme
+    @Environment(\.radixAnimations) private var animations
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+    @Namespace private var selectionNamespace
+    @Namespace private var hoverNamespace
+
+    public init(
+        selection: Binding<Value>,
+        items: [RadixSegmentedButtonGroupItem<Value>],
+        orientation: RadixOrientation = .horizontal,
+        display: RadixSegmentedButtonGroupDisplay = .text,
+        size: RadixSize = .two,
+        variant: RadixThemeVariant = .surface,
+        color: RadixAccentColor? = nil
+    ) {
+        self._selection = selection
+        self.items = items
+        self.orientation = orientation
+        self.display = display
+        self.size = size
+        self.variant = variant
+        self.color = color
+    }
+
+    public var body: some View {
+        let metrics = RadixControlMetrics(size: size, theme: theme)
+        let palette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: color)
+        let shape = RoundedRectangle(cornerRadius: groupRadius(metrics: metrics), style: .continuous)
+
+        RadixGlassEffectGroup(spacing: 0) {
+            orientedItems(metrics: metrics, palette: palette)
+                .padding(groupInset)
+        }
+        .background(groupBackground(palette: palette, shape: shape))
+        .radixInteractiveGlass(enabled: false, tint: groupGlassTint(palette: palette), in: shape)
+        .clipShape(shape)
+        .overlay(
+            shape.stroke(groupBorder(palette: palette), lineWidth: groupBorderWidth)
+        )
+        .opacity(isEnabled ? 1 : 0.58)
+        .animation(animations.animation(for: .toggle), value: selection)
+        .animation(animations.animation(for: .hover), value: hoveredItem)
+    }
+
+    @ViewBuilder
+    private func orientedItems(metrics: RadixControlMetrics, palette: RadixComponentPalette) -> some View {
+        if orientation == .horizontal {
+            HStack(spacing: 0) {
+                itemButtons(metrics: metrics, palette: palette)
+            }
+        } else {
+            VStack(spacing: 0) {
+                itemButtons(metrics: metrics, palette: palette)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func itemButtons(metrics: RadixControlMetrics, palette: RadixComponentPalette) -> some View {
+        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+            segmentedButton(for: item, metrics: metrics, palette: palette)
+
+            if index < items.count - 1 {
+                separator(
+                    left: item.id,
+                    right: items[index + 1].id,
+                    metrics: metrics,
+                    palette: palette
+                )
+            }
+        }
+    }
+
+    private func segmentedButton(
+        for item: RadixSegmentedButtonGroupItem<Value>,
+        metrics: RadixControlMetrics,
+        palette: RadixComponentPalette
+    ) -> some View {
+        let isSelected = selection == item.id
+        let isHovered = hoveredItem == item.id && !isSelected
+        let shape = RoundedRectangle(cornerRadius: itemRadius(metrics: metrics), style: .continuous)
+
+        return Button {
+            guard selection != item.id else { return }
+
+            animations.perform(.toggle) {
+                selection = item.id
+            }
+        } label: {
+            ZStack {
+                itemPlate(isSelected: isSelected, isHovered: isHovered, metrics: metrics, palette: palette)
+                itemContent(for: item, isSelected: isSelected, palette: palette)
+                    .padding(.horizontal, itemHorizontalPadding)
+                    .padding(.vertical, 1)
+            }
+            .frame(minWidth: itemMinWidth(metrics: metrics), minHeight: metrics.height)
+            .frame(height: metrics.height)
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(item.label))
+        .accessibilityValue(isSelected ? Text("Selected") : Text(""))
+        .onHover { hovering in
+            guard isEnabled else { return }
+
+            animations.perform(.hover) {
+                if hovering {
+                    hoveredItem = item.id
+                } else if hoveredItem == item.id {
+                    hoveredItem = nil
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the visible segment content while keeping the text label available as the accessibility name.
+    /// </summary>
+    private func itemContent(
+        for item: RadixSegmentedButtonGroupItem<Value>,
+        isSelected: Bool,
+        palette: RadixComponentPalette
+    ) -> some View {
+        let showsIcon = display != .text && item.icon != nil
+        let showsText = display != .icon || item.icon == nil
+        let spacing = showsIcon && showsText ? theme.space(2) : 0
+
+        return HStack(spacing: spacing) {
+            if showsIcon, let icon = item.icon {
+                RadixIcon(icon, size: iconSize)
+                    .accessibilityHidden(true)
+            }
+
+            if showsText {
+                Text(item.label)
+                    .font(theme.font(textSize, weight: isSelected ? .medium : .regular))
+                    .lineLimit(1)
+            }
+        }
+        .padding(.trailing, item.badge == nil ? 0 : badgeReservedWidth)
+        .foregroundStyle(itemForeground(isSelected: isSelected, palette: palette))
+        .overlay(alignment: .topTrailing) {
+            if let badge = item.badge {
+                badgeView(badge)
+                    .offset(x: badgeOffset, y: -badgeOffset)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func itemPlate(
+        isSelected: Bool,
+        isHovered: Bool,
+        metrics: RadixControlMetrics,
+        palette: RadixComponentPalette
+    ) -> some View {
+        let radius = itemRadius(metrics: metrics)
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+        if isHovered {
+            shape
+                .fill(hoverFill(palette: palette))
+                .matchedGeometryEffect(id: "hover", in: hoverNamespace)
+                .padding(itemInset)
+        }
+
+        if isSelected {
+            shape
+                .fill(selectedFill(palette: palette))
+                .overlay(
+                    shape.stroke(selectedBorder(palette: palette), lineWidth: selectedBorderWidth)
+                )
+                .matchedGeometryEffect(id: "selection", in: selectionNamespace)
+                .padding(itemInset)
+        }
+    }
+
+    @ViewBuilder
+    private func separator(
+        left: Value,
+        right: Value,
+        metrics: RadixControlMetrics,
+        palette: RadixComponentPalette
+    ) -> some View {
+        let opacity = separatorOpacity(left: left, right: right)
+
+        if orientation == .horizontal {
+            Rectangle()
+                .fill(palette.gray(5, alpha: true))
+                .frame(width: 1, height: max(metrics.height - itemInset * 4, 1))
+                .opacity(opacity)
+        } else {
+            Rectangle()
+                .fill(palette.gray(5, alpha: true))
+                .frame(width: itemMinWidth(metrics: metrics), height: 1)
+                .padding(.horizontal, theme.space(2))
+                .opacity(opacity)
+        }
+    }
+
+    private func badgeView(_ badge: RadixSegmentedButtonBadge) -> some View {
+        let badgePalette = RadixComponentPalette(theme: theme, colorScheme: colorScheme, overrideColor: badge.color ?? .amber)
+
+        return Text(badge.text)
+            .font(theme.font(.one, weight: .bold))
+            .foregroundStyle(badgePalette.contrast())
+            .lineLimit(1)
+            .padding(.horizontal, badge.text.count > 1 ? 5 : 0)
+            .frame(minWidth: badgeSize, minHeight: badgeSize)
+            .background(Capsule().fill(badgePalette.accent(9)))
+            .overlay(
+                Capsule()
+                    .stroke(badgePalette.accent(8, alpha: true), lineWidth: 1)
+            )
+    }
+
+    private var groupInset: CGFloat {
+        switch size {
+        case .one: 2
+        case .two: 3
+        default: 4
+        }
+    }
+
+    private var itemInset: CGFloat {
+        switch size {
+        case .one: 1
+        default: 2
+        }
+    }
+
+    private var itemHorizontalPadding: CGFloat {
+        switch display {
+        case .icon:
+            theme.space(2)
+        case .text:
+            theme.space(size == .one ? 3 : 4)
+        case .iconAndText:
+            theme.space(size == .one ? 3 : 4)
+        }
+    }
+
+    private var textSize: RadixSize {
+        size == .one ? .one : .two
+    }
+
+    private var iconSize: CGFloat {
+        switch size {
+        case .one: 14 * theme.scaling.factor
+        case .two: 16 * theme.scaling.factor
+        case .three: 18 * theme.scaling.factor
+        default: 18 * theme.scaling.factor
+        }
+    }
+
+    private var badgeSize: CGFloat {
+        switch size {
+        case .one: 15 * theme.scaling.factor
+        case .two: 17 * theme.scaling.factor
+        default: 18 * theme.scaling.factor
+        }
+    }
+
+    private var badgeOffset: CGFloat {
+        switch size {
+        case .one: 4
+        default: 5
+        }
+    }
+
+    private var badgeReservedWidth: CGFloat {
+        badgeSize * 0.9
+    }
+
+    private func groupRadius(metrics: RadixControlMetrics) -> CGFloat {
+        metrics.radius + groupInset
+    }
+
+    private func itemRadius(metrics: RadixControlMetrics) -> CGFloat {
+        max(metrics.radius, 1)
+    }
+
+    private func itemMinWidth(metrics: RadixControlMetrics) -> CGFloat {
+        switch display {
+        case .icon:
+            metrics.height + theme.space(size == .one ? 2 : 3)
+        case .text:
+            theme.space(size == .one ? 7 : 8)
+        case .iconAndText:
+            theme.space(size == .one ? 9 : 10)
+        }
+    }
+
+    private var groupBorderWidth: CGFloat {
+        switch variant {
+        case .surface, .outline, .classic:
+            1
+        default:
+            0
+        }
+    }
+
+    private var selectedBorderWidth: CGFloat {
+        switch variant {
+        case .surface, .outline, .classic:
+            1
+        default:
+            0
+        }
+    }
+
+    private func itemForeground(isSelected: Bool, palette: RadixComponentPalette) -> Color {
+        if isSelected && (variant == .solid || variant == .classic) {
+            return palette.contrast()
+        }
+
+        return isSelected
+            ? palette.gray(12)
+            : palette.gray(11)
+    }
+
+    private func groupBackground<S: Shape>(palette: RadixComponentPalette, shape: S) -> some View {
+        shape.fill(groupFill(palette: palette))
+    }
+
+    private func groupFill(palette: RadixComponentPalette) -> Color {
+        guard isEnabled else { return palette.gray(3, alpha: true) }
+
+        return switch variant {
+        case .classic:
+            theme.solidPanel(colorScheme: colorScheme)
+        case .soft:
+            palette.accent(3, alpha: true)
+        case .ghost, .outline:
+            .clear
+        case .solid:
+            palette.accent(9).opacity(colorScheme == .dark ? 0.28 : 0.18)
+        case .surface:
+            theme.controlSurface(colorScheme: colorScheme)
+        }
+    }
+
+    private func groupBorder(palette: RadixComponentPalette) -> Color {
+        switch variant {
+        case .outline:
+            palette.accent(8, alpha: true)
+        case .surface, .classic:
+            palette.gray(6, alpha: true)
+        default:
+            .clear
+        }
+    }
+
+    private func groupGlassTint(palette: RadixComponentPalette) -> Color? {
+        switch variant {
+        case .solid, .soft:
+            palette.accent(9).opacity(0.18)
+        default:
+            nil
+        }
+    }
+
+    private func selectedFill(palette: RadixComponentPalette) -> Color {
+        switch variant {
+        case .solid, .classic:
+            palette.accent(9)
+        case .soft:
+            palette.accent(4, alpha: true)
+        case .surface, .outline, .ghost:
+            colorScheme == .dark
+                ? palette.gray(3, alpha: true)
+                : theme.background(colorScheme: colorScheme)
+        }
+    }
+
+    private func selectedBorder(palette: RadixComponentPalette) -> Color {
+        switch variant {
+        case .outline:
+            palette.accent(8, alpha: true)
+        case .surface, .ghost:
+            palette.accent(7, alpha: true)
+        case .classic:
+            palette.gray(7, alpha: true)
+        default:
+            .clear
+        }
+    }
+
+    private func hoverFill(palette: RadixComponentPalette) -> Color {
+        switch variant {
+        case .soft:
+            palette.accent(4, alpha: true)
+        case .solid:
+            palette.accent(9).opacity(0.2)
+        default:
+            palette.gray(3, alpha: true)
+        }
+    }
+
+    private func separatorOpacity(left: Value, right: Value) -> Double {
+        if selection == left || selection == right {
+            return 0
+        }
+
+        if hoveredItem == left || hoveredItem == right {
+            return 0
+        }
+
+        return 1
+    }
+}
+
 public struct RadixSelect<Value: Hashable & Sendable>: View {
     public var title: LocalizedStringKey
     @Binding private var selection: Value
