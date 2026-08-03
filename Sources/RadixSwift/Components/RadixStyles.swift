@@ -616,7 +616,7 @@ public struct RadixButtonStyle: ButtonStyle {
             .lineLimit(1)
             .foregroundStyle(foreground(palette: palette))
             .padding(.horizontal, horizontalPadding(metrics: metrics))
-            .frame(height: variant == .ghost ? nil : metrics.height)
+            .frame(height: metrics.height)
             .background(backgroundLayer(palette: palette, metrics: metrics, pressed: pressed))
             .radixInteractiveGlass(
                 active: usesButtonGlass,
