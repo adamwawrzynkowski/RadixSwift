@@ -95,6 +95,7 @@ struct RadixGlassEffectGroup<Content: View>: View {
     }
 
     var body: some View {
+#if compiler(>=6.2)
         if #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
             GlassEffectContainer(spacing: resolvedSpacing) {
                 content
@@ -102,6 +103,9 @@ struct RadixGlassEffectGroup<Content: View>: View {
         } else {
             content
         }
+#else
+        content
+#endif
     }
 
     private var resolvedSpacing: CGFloat {
@@ -128,6 +132,7 @@ extension View {
         tint: Color? = nil,
         in shape: S
     ) -> some View {
+#if compiler(>=6.2)
         if active, #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
             if let tint {
                 glassEffect(.regular.tint(tint).interactive(enabled), in: shape)
@@ -139,6 +144,9 @@ extension View {
         } else {
             self
         }
+#else
+        self
+#endif
     }
 
     @ViewBuilder
@@ -150,6 +158,7 @@ extension View {
         effectID: ID,
         namespace: Namespace.ID
     ) -> some View {
+#if compiler(>=6.2)
         if active, #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
             if let tint {
                 glassEffect(.regular.tint(tint).interactive(enabled), in: shape)
@@ -163,6 +172,9 @@ extension View {
         } else {
             self
         }
+#else
+        self
+#endif
     }
 
     func radixResponsiveHover(active: Bool = true, scale: CGFloat = 1.012) -> some View {
