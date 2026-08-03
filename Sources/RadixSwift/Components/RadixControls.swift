@@ -578,6 +578,7 @@ public struct RadixSwitch<Label: View>: View {
         let offset = (trackWidth - trackHeight) * progress
 
         return Group {
+#if compiler(>=6.2)
             if #available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *) {
                 GlassEffectContainer(spacing: 3) {
                     ZStack(alignment: .leading) {
@@ -587,25 +588,47 @@ public struct RadixSwitch<Label: View>: View {
                     }
                 }
             } else {
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(switchBackground(palette: palette))
-                        .overlay(
-                            Capsule()
-                                .stroke(switchBorder(palette: palette), lineWidth: 1)
-                        )
-
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: thumbSize, height: thumbSize)
-                        .shadow(color: .black.opacity(0.12), radius: 1, x: 0, y: 1)
-                        .offset(x: inset + offset)
-                }
+                standardSwitchTrack(
+                    palette: palette,
+                    inset: inset,
+                    thumbSize: thumbSize,
+                    offset: offset
+                )
             }
+#else
+            standardSwitchTrack(
+                palette: palette,
+                inset: inset,
+                thumbSize: thumbSize,
+                offset: offset
+            )
+#endif
         }
         .frame(width: trackWidth, height: trackHeight)
         .contentShape(Capsule())
         .simultaneousGesture(switchDragGesture())
+    }
+
+    private func standardSwitchTrack(
+        palette: RadixComponentPalette,
+        inset: CGFloat,
+        thumbSize: CGFloat,
+        offset: CGFloat
+    ) -> some View {
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(switchBackground(palette: palette))
+                .overlay(
+                    Capsule()
+                        .stroke(switchBorder(palette: palette), lineWidth: 1)
+                )
+
+            Circle()
+                .fill(Color.white)
+                .frame(width: thumbSize, height: thumbSize)
+                .shadow(color: .black.opacity(0.12), radius: 1, x: 0, y: 1)
+                .offset(x: inset + offset)
+        }
     }
 
     private func switchBackground(palette: RadixComponentPalette) -> Color {
@@ -623,6 +646,7 @@ public struct RadixSwitch<Label: View>: View {
         return palette.gray(5, alpha: true)
     }
 
+#if compiler(>=6.2)
     @available(iOS 26.0, macOS 26.0, macCatalyst 26.0, tvOS 26.0, watchOS 26.0, *)
     private func liquidGlassTrack(palette: RadixComponentPalette) -> some View {
         Capsule()
@@ -658,6 +682,7 @@ public struct RadixSwitch<Label: View>: View {
         let glass = isOn ? Glass.regular.tint(palette.accent(9)) : Glass.regular
         return glass.interactive(isEnabled)
     }
+#endif
 
     private func switchDragGesture() -> some Gesture {
         DragGesture(minimumDistance: 3)
